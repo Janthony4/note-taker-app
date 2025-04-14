@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import type { RouteRecordRaw } from 'vue-router';
 import HomeView from '../views/HomeView.vue';
 import NoteDetail from '../components/NoteDetail.vue';
-import NoteForm from '../components/NoteForm.vue';
+import NoteForm from '../components/NoteForm.vue'; // This will be reused for both creating and editing
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -13,12 +13,19 @@ const routes: Array<RouteRecordRaw> = [
   {
     path: '/note/:id',
     name: 'NoteDetail',
-    component: NoteDetail
+    component: NoteDetail,
+    props: true  // Pass the 'id' as a prop to the NoteDetail component
   },
   {
     path: '/create',
     name: 'CreateNote',
     component: NoteForm
+  },
+  {
+    path: '/edit/:id',
+    name: 'EditNote',
+    component: NoteForm,
+    props: true  // Pass the 'id' as a prop to the NoteForm component
   }
 ];
 

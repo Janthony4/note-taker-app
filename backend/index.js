@@ -47,7 +47,6 @@ app.get('/api/notes/:id', async (req, res) => {
 	}
 });
 
-
 app.delete('/api/notes/:id', async (req, res) => {
 	try {
 		const note = await Note.findByIdAndDelete(req.params.id);
@@ -57,6 +56,18 @@ app.delete('/api/notes/:id', async (req, res) => {
 		res.status(500).send(error);
 	}
 });
+
+app.put('/notes/:id', async (req, res) => {
+	try {
+	  const note = await Note.findByIdAndUpdate(req.params.id, req.body, { new: true });
+	  if (!note) {
+		return res.status(404).json({ message: 'Note not found' });
+	  }
+	  res.json(note);
+	} catch (error) {
+	  res.status(500).json({ message: error.message });
+	}
+  });
 
 app.listen(port, () => {
 	console.log(`Backend running on port ${port}`);
