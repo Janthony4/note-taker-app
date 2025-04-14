@@ -1,85 +1,61 @@
-<script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
-</script>
-
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
+  <div>
+    <!-- Header -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+      <div class="container-fluid">
+        <span class="navbar-brand mb-0 h1">NoteTaker</span>
+      </div>
+    </nav>
 
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
-
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
-      </nav>
+    <!-- Notes -->
+    <div class="container mt-4">
+      <div class="row">
+        <div class="col-md-4" v-for="note in notes" :key="note.id">
+          <div class="card">
+            <div class="card-body">
+              <h5 class="card-title">{{ note.title }}</h5>
+              <p class="card-text">{{ note.content }}</p>
+              <button class="btn btn-primary" @click="editNote(note.id)">Edit</button>
+              <button class="btn btn-danger" @click="deleteNote(note.id)">Delete</button>
+              <button class="btn btn-info" @click="viewNote(note.id)">View</button>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
-  </header>
-
-  <RouterView />
+  </div>
 </template>
 
+<script>
+export default {
+  data() {
+    return {
+      notes: [
+        { id: 1, title: 'First Note', content: 'This is the content of the first note.' },
+        { id: 2, title: 'Second Note', content: 'This is the content of the second note.' },
+        { id: 3, title: 'Third Note', content: 'This is the content of the third note.' },
+      ],
+    };
+  },
+  methods: {
+    editNote(id) {
+      alert(`Editing note with ID: ${id}`);
+      // You can add your logic here for editing the note.
+    },
+    deleteNote(id) {
+      this.notes = this.notes.filter(note => note.id !== id);
+      alert(`Deleted note with ID: ${id}`);
+    },
+    viewNote(id) {
+      alert(`Viewing note with ID: ${id}`);
+      // You can add your logic here to show the note in full view.
+    }
+  }
+};
+</script>
+
 <style scoped>
-header {
-  line-height: 1.5;
-  max-height: 100vh;
-}
-
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
-
-nav {
-  width: 100%;
-  font-size: 12px;
-  text-align: center;
-  margin-top: 2rem;
-}
-
-nav a.router-link-exact-active {
-  color: var(--color-text);
-}
-
-nav a.router-link-exact-active:hover {
-  background-color: transparent;
-}
-
-nav a {
-  display: inline-block;
-  padding: 0 1rem;
-  border-left: 1px solid var(--color-border);
-}
-
-nav a:first-of-type {
-  border: 0;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  nav {
-    text-align: left;
-    margin-left: -1rem;
-    font-size: 1rem;
-
-    padding: 1rem 0;
-    margin-top: 1rem;
-  }
-}
+/* Add any additional styling you need */
 </style>
+
+

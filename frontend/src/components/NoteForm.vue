@@ -19,10 +19,24 @@ export default defineComponent({
     const content = ref('');
     const router = useRouter();
 
-    const createNote = () => {
-      // For simplicity, we'll just log the note to the console
-      console.log({ title: title.value, content: content.value });
-      router.push('/');
+    const createNote = async () => {
+      try {
+        const response = await fetch('/api/notes', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ title: title.value, content: content.value })
+        });
+    
+        if (response.ok) {
+          router.push('/');
+        } else {
+          console.error('Failed to create note');
+        }
+      } catch (error) {
+        console.error('Error creating note:', error);
+      }
     };
 
     return {

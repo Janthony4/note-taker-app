@@ -1,30 +1,40 @@
 <template>
-  <div>
-    <h1 v-if="note">{{ note.title }}</h1>
-    <p v-if="note">{{ note.content }}</p>
-    <h1 v-else>Note not found</h1>
-    <router-link to="/">Back to Notes</router-link>
-  </div>
+	<div v-if="note">
+		<h1>{{ note.title }}</h1>
+		<p>{{ note.content }}</p>
+	</div>
+	<div v-else>
+		<p>Note not found</p>
+	</div>
 </template>
 
 <script lang="ts">
-import { defineComponent, ref } from 'vue';
+import { defineComponent, ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
+import axios from 'axios';
+
+interface Note {
+	_id: string;
+	title: string;
+	content: string;
+}
 
 export default defineComponent({
-  setup() {
-    const route = useRoute();
-    const noteId = parseInt(route.params.id as string);
-    const notes = [
-      { id: 1, title: 'Note 1', content: 'This is the first note.' },
-      { id: 2, title: 'Note 2', content: 'This is the second note.' }
-    ];
+	setup() {
+		const route = useRoute();
+		const note = ref<Note | null>(null);
 
-    const note = notes.find(n => n.id === noteId);
+		onMounted(async () => {
+			try {
+				const id = route.params.id as string;
+				const response = await axios.get<Note>(`/api/notes/${id}`);
+				note.value = response.data;
+			} catch (error) {
+				console.error('Error fetching note:', error);
+			}
+		});
 
-    return {
-      note
-    };
-  }
+		return { note };
+	}
 });
 </script>
