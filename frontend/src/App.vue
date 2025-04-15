@@ -1,69 +1,27 @@
-<!-- <template>
-  <div>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-      <div class="container-fluid">
-        <span class="navbar-brand mb-0 h1">NoteTaker</span>
-      </div>
-    </nav>
-
-    <div class="container mt-4">
-      <div class="row">
-        <div class="col-md-4" v-for="note in notes" :key="note.id">
-          <div class="card">
-            <div class="card-body">
-              <h5 class="card-title">{{ note.title }}</h5>
-              <p class="card-text">{{ note.content }}</p>
-              <button class="btn btn-primary" @click="editNote(note.id)">Edit</button>
-              <button class="btn btn-danger" @click="deleteNote(note.id)">Delete</button>
-              <button class="btn btn-info" @click="viewNote(note.id)">View</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
-<script>
-export default {
-  data() {
-    return {
-      notes: [
-        { id: 1, title: 'First Note', content: 'This is the content of the first note.' },
-        { id: 2, title: 'Second Note', content: 'This is the content of the second note.' },
-        { id: 3, title: 'Third Note', content: 'This is the content of the third note.' },
-      ],
-    };
-  },
-  methods: {
-    editNote(id) {
-      alert(`Editing note with ID: ${id}`);
-      // You can add your logic here for editing the note.
-    },
-    deleteNote(id) {
-      this.notes = this.notes.filter(note => note.id !== id);
-      alert(`Deleted note with ID: ${id}`);
-    },
-    viewNote(id) {
-      alert(`Viewing note with ID: ${id}`);
-      // You can add your logic here to show the note in full view.
-    }
-  }
-};
-</script>
-
-<style scoped>
-/* Add any additional styling you need */
-</style>
--->
-<template>
+ <template>
   <div>
     <!-- Header -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
       <div class="container-fluid">
         <span class="navbar-brand mb-0 h1">NoteTaker</span>
+        <button class="btn btn-success" @click="showCreateModal = true">Create Note</button>
       </div>
     </nav>
+
+    <!-- Create Note Modal -->
+    <div v-if="showCreateModal" class="modal" style="display: block; background-color: rgba(0,0,0,0.5)">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Create New Note</h5>
+            <button type="button" class="btn-close" @click="showCreateModal = false"></button>
+          </div>
+          <div class="modal-body">
+            <NoteForm @note-created="handleNoteCreated" />
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- Notes -->
     <div class="container mt-4">
@@ -86,11 +44,16 @@ export default {
 
 <script>
 import axios from 'axios';
+import NoteForm from './components/NoteForm.vue';
 
 export default {
+  components: {
+    NoteForm
+  },
   data() {
     return {
-      notes: []
+      notes: [],
+      showCreateModal: false
     };
   },
   mounted() {
@@ -119,12 +82,34 @@ export default {
     },
     viewNote(id) {
       this.$router.push(`/note/${id}`);
+    },
+    handleNoteCreated() {
+      this.showCreateModal = false;
+      this.fetchNotes();
     }
   }
 };
 </script>
 
 <style scoped>
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1050;
+}
 
+.modal-dialog {
+  max-width: 500px;
+  width: 100%;
+}
+
+.card {
+  margin-bottom: 20px;
+}
 </style>
-
