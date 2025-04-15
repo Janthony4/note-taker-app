@@ -1,4 +1,4 @@
- <template>
+<template>
   <div>
     <!-- Header -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
@@ -26,14 +26,24 @@
     <!-- Notes -->
     <div class="container mt-4">
       <div class="row">
-        <div class="col-md-4" v-for="note in notes" :key="note._id">
-          <div class="card">
+        <div class="col-md-4 mb-4" v-for="note in notes" :key="note._id">
+          <div class="card h-100">
             <div class="card-body">
               <h5 class="card-title">{{ note.title }}</h5>
               <p class="card-text">{{ note.content }}</p>
-              <button class="btn btn-primary" @click="editNote(note._id)">Edit</button>
-              <button class="btn btn-danger" @click="deleteNote(note._id)">Delete</button>
-              <button class="btn btn-info" @click="viewNote(note._id)">View</button>
+
+              <!-- Attachments Section -->
+              <div v-for="(attachment, index) in note.attachments" :key="index">
+                <img v-if="isImage(attachment.contentType)" :src="getAttachmentUrl(attachment.filename)"
+                  class="img-thumbnail" style="max-height: 100px; max-width: 100%; object-fit: contain;"
+                  :alt="attachment.originalname" />
+              </div>
+
+              <div class="mt-3 d-flex gap-2">
+                <button class="btn btn-primary" @click="editNote(note._id)">Edit</button>
+                <button class="btn btn-danger" @click="deleteNote(note._id)">Delete</button>
+                <button class="btn btn-info" @click="viewNote(note._id)">View</button>
+              </div>
             </div>
           </div>
         </div>
@@ -60,6 +70,12 @@ export default {
     this.fetchNotes();
   },
   methods: {
+    isImage(contentType) {
+      return contentType && contentType.startsWith('image/');
+    },
+    getAttachmentUrl(filename) {
+      return `${import.meta.env.VITE_API_BASE_URL || ''}/uploads/${filename}`;
+    },
     async fetchNotes() {
       try {
         const response = await axios.get('/api/notes');
@@ -74,14 +90,14 @@ export default {
     deleteNote(id) {
       axios.delete(`/api/notes/${id}`)
         .then(() => {
-          this.fetchNotes(); // Re-fetch notes after deletion
+          this.fetchNotes();
         })
         .catch(error => {
           console.error('Error deleting note:', error);
         });
     },
     viewNote(id) {
-      this.$router.push(`/note/${id}`);
+      this.$router.push({ name: 'NoteDetail', params: { id } });
     },
     handleNoteCreated() {
       this.showCreateModal = false;
@@ -111,5 +127,15 @@ export default {
 
 .card {
   margin-bottom: 20px;
+  transition: transform 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.img-thumbnail {
+  cursor: pointer;
 }
 </style>
