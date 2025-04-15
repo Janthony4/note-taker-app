@@ -18,6 +18,7 @@ cd note-taker-app
 
 cd frontend
 npm install vite @vitejs/plugin-vue typescript @vue/compiler-sfc --save-dev
+npm install @tsconfig/node22
 cd ..
 
 docker-compose up -d --build
