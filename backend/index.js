@@ -131,41 +131,63 @@ app.delete('/api/notes/:id', async (req, res) => {
 	}
 });
 
-app.put('/api/notes/:id', upload.array('attachments'), async (req, res) => {
-	try {
-		const { title, content } = req.body;
-		const existingNote = await Note.findById(req.params.id);
-
-		if (!existingNote) {
-			return res.status(404).json({ message: 'Note not found' });
-		}
-
-		// Handle existing attachments
-		let attachments = existingNote.attachments || [];
-
-		// Add new attachments if any
-		if (req.files && req.files.length) {
-			const newAttachments = req.files.map(file => ({
-				filename: file.filename,
-				originalname: file.originalname,
-				path: file.path,
-				contentType: file.mimetype,
-				size: file.size
-			}));
-			attachments = [...attachments, ...newAttachments];
-		}
-
-		const note = await Note.findByIdAndUpdate(
-			req.params.id,
-			{ title, content, attachments },
-			{ new: true }
-		);
-
-		res.json(note);
-	} catch (error) {
-		res.status(500).json({ message: error.message });
-	}
+app.put('/api/notes/:id', upload.array('newAttachments'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, content, attachments } = req.body;
+    
+    // Parse the existing attachments (minus any deleted ones)
+    const existingAttachments = JSON.parse(attachments || '[]');
+    
+    // Process new attachments
+    const newAttachments = req.files?.map(file => ({
+      filename: file.filename,
+      originalname: file.originalname,
+      path: file.path,
+      contentType: file.mimetype,
+      size: file.size
+    })) || [];
+    
+    // Combine attachments
+    const updatedAttachments = [...existingAttachments, ...newAttachments];
+    
+    // Update the note
+    const note = await Note.findByIdAndUpdate(
+      id,
+      { title, content, attachments: updatedAttachments },
+      { new: true }
+    );
+    
+    res.json(note);
+  } catch (error) {
+    console.error('Error updating note:', error);
+    res.status(500).json({ error: 'Failed to update note' });
+  }
 });
+
+app.delete('/api/notes/:id/attachments/:filename', async (req, res) => {
+	try {
+	  const { id, filename } = req.params;
+	  
+	  // Remove file from filesystem
+	  const filePath = path.join(__dirname, 'uploads', filename);
+	  if (fs.existsSync(filePath)) {
+		fs.unlinkSync(filePath);
+	  }
+	  
+	  // Remove from note's attachments
+	  await Note.findByIdAndUpdate(
+		id,
+		{ $pull: { attachments: { filename } } },
+		{ new: true }
+	  );
+	  
+	  res.json({ success: true });
+	} catch (error) {
+	  console.error('Error deleting attachment:', error);
+	  res.status(500).json({ error: 'Failed to delete attachment' });
+	}
+  });
 
 app.listen(port, () => {
 	console.log(`Backend running on port ${port}`);

@@ -68,7 +68,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">Edit Note</h5>
-            <button type="button" class="btn-close" @click="showEditModal = false"></button>
+            <button type="button" class="btn-close" @click="cancelEdit">Cancel</button>
           </div>
           <div class="modal-body">
             <form @submit.prevent="updateNote">
@@ -96,7 +96,8 @@
                     </div>
                     <button type="button" 
                             class="btn btn-sm btn-danger position-absolute top-0 end-0"
-                            @click="removeAttachment(index)">
+                            @click="removeAttachment(index)"
+                            :disabled="isSaving">
                       <i class="bi bi-trash"></i>
                     </button>
                   </div>
@@ -104,22 +105,41 @@
               </div>
               
               <div class="mb-3">
-                <label class="form-label">Add New Attachments</label>
-                <input type="file" class="form-control" multiple @change="handleFileUpload">
+                <label class="form-label">Add New Attachments (max 5MB each)</label>
+                <input type="file" 
+                       class="form-control" 
+                       multiple 
+                       @change="handleFileUpload"
+                       :disabled="isSaving">
                 <div v-if="newAttachments.length" class="mt-2">
                   <div v-for="(file, index) in newAttachments" :key="'new-'+index" class="d-inline-block me-2">
                     <span class="badge bg-secondary">
-                      {{ file.name }}
-                      <button type="button" class="btn-close btn-close-white btn-sm ms-1" 
-                              @click="removeNewAttachment(index)"></button>
+                      {{ file.name }} ({{ formatFileSize(file.size) }})
+                      <button type="button" 
+                              class="btn-close btn-close-white btn-sm ms-1" 
+                              @click="removeNewAttachment(index)"
+                              :disabled="isSaving"></button>
                     </span>
                   </div>
+                </div>
+                <div v-if="fileSizeError" class="text-danger mt-2">
+                  {{ fileSizeError }}
                 </div>
               </div>
               
               <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" @click="showEditModal = false">Cancel</button>
-                <button type="submit" class="btn btn-primary">Save Changes</button>
+                <button type="button" 
+                        class="btn btn-secondary" 
+                        @click="cancelEdit"
+                        :disabled="isSaving">
+                  Cancel
+                </button>
+                <button type="submit" 
+                        class="btn btn-primary" 
+                        :disabled="isSaving">
+                  <span v-if="isSaving" class="spinner-border spinner-border-sm me-1"></span>
+                  {{ isSaving ? 'Saving...' : 'Save Changes' }}
+                </button>
               </div>
             </form>
           </div>
@@ -129,7 +149,13 @@
 
     <!-- Notes List -->
     <div class="container mt-4">
-      <div class="row">
+      <div v-if="loadingNotes" class="text-center my-4">
+        <div class="spinner-border text-primary" role="status">
+          <span class="visually-hidden">Loading...</span>
+        </div>
+      </div>
+      
+      <div v-else class="row">
         <div class="col-md-4 mb-4" v-for="note in notes" :key="note._id">
           <div class="card h-100">
             <div class="card-body">
@@ -172,6 +198,8 @@ export default {
   data() {
     return {
       notes: [],
+      loadingNotes: false,
+      isSaving: false,
       showCreateModal: false,
       showViewModal: false,
       showEditModal: false,
@@ -182,7 +210,10 @@ export default {
         content: '',
         attachments: []
       },
-      newAttachments: []
+      newAttachments: [],
+      deletedAttachments: [],
+      fileSizeError: '',
+      MAX_FILE_SIZE: 5 * 1024 * 1024 // 5MB
     };
   },
   mounted() {
@@ -195,12 +226,22 @@ export default {
     getAttachmentUrl(filename) {
       return `${import.meta.env.VITE_API_BASE_URL || ''}/uploads/${filename}`;
     },
+    formatFileSize(bytes) {
+      if (bytes === 0) return '0 Bytes';
+      const k = 1024;
+      const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2) + ' ' + sizes[i]);
+    },
     async fetchNotes() {
+      this.loadingNotes = true;
       try {
         const response = await axios.get('/api/notes');
         this.notes = response.data;
       } catch (error) {
         console.error('Error fetching notes:', error);
+      } finally {
+        this.loadingNotes = false;
       }
     },
     editNote(note) {
@@ -211,51 +252,85 @@ export default {
         attachments: [...note.attachments]
       };
       this.newAttachments = [];
+      this.deletedAttachments = [];
+      this.fileSizeError = '';
       this.showEditModal = true;
     },
     async updateNote() {
+      this.isSaving = true;
+      this.fileSizeError = '';
+      
       try {
+        // Validate file sizes
+        const oversizedFiles = this.newAttachments.filter(file => file.size > this.MAX_FILE_SIZE);
+        if (oversizedFiles.length) {
+          this.fileSizeError = `Some files exceed the 5MB limit (${oversizedFiles.map(f => f.name).join(', ')})`;
+          return;
+        }
+
         const formData = new FormData();
         formData.append('title', this.editingNote.title);
         formData.append('content', this.editingNote.content);
-        
-        // Append existing attachments that weren't deleted
         formData.append('attachments', JSON.stringify(this.editingNote.attachments));
         
-        // Append new files
+        // Add new files
         this.newAttachments.forEach(file => {
           formData.append('newAttachments', file);
         });
 
+        // First update the note with new data
         await axios.put(`/api/notes/${this.editingNote._id}`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
         });
 
+        // Then delete any removed attachments
+        if (this.deletedAttachments.length) {
+          await Promise.all(
+            this.deletedAttachments.map(filename => 
+              axios.delete(`/api/notes/${this.editingNote._id}/attachments/${filename}`)
+            )
+          );
+        }
+
         this.showEditModal = false;
         this.fetchNotes();
       } catch (error) {
         console.error('Error updating note:', error);
+        this.fileSizeError = 'Failed to save changes. Please try again.';
+      } finally {
+        this.isSaving = false;
       }
     },
     handleFileUpload(event) {
-      this.newAttachments = [...this.newAttachments, ...Array.from(event.target.files)];
+      const files = Array.from(event.target.files);
+      this.newAttachments = [...this.newAttachments, ...files];
+      event.target.value = ''; // Reset file input
     },
     removeAttachment(index) {
+      // Add to deleted attachments list
+      this.deletedAttachments.push(this.editingNote.attachments[index].filename);
+      // Remove from display
       this.editingNote.attachments.splice(index, 1);
     },
     removeNewAttachment(index) {
       this.newAttachments.splice(index, 1);
     },
-    deleteNote(id) {
-      axios.delete(`/api/notes/${id}`)
-        .then(() => {
+    cancelEdit() {
+      if (!this.isSaving) {
+        this.showEditModal = false;
+      }
+    },
+    async deleteNote(id) {
+      //if (confirm('Are you sure you want to delete this note?')) {
+        try {
+          await axios.delete(`/api/notes/${id}`);
           this.fetchNotes();
-        })
-        .catch(error => {
+        } catch (error) {
           console.error('Error deleting note:', error);
-        });
+        }
+      //}
     },
     viewNote(note) {
       this.currentNote = note;
@@ -320,5 +395,17 @@ export default {
 
 .end-0 {
   right: 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 </style>
