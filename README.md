@@ -14,7 +14,7 @@ Before you begin, ensure you have the following installed on your system:
 git clone https://github.com/Janthony4/note-taker-app
 cd note-taker-app
 
-echo MONGO_URI=mongodb://mongo:27017/notes > backend/.env
+"MONGO_URI=mongodb://mongo:27017/notes" | Out-File -FilePath backend/.env -Encoding ASCII
 
 docker-compose up -d --build
 
