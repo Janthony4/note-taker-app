@@ -1,62 +1,45 @@
-// const mongoose = require('mongoose');
-
-// const noteSchema = new mongoose.Schema({
-//   title: {
-//     type: String,
-//     required: true
-//   },
-//   content: {
-//     type: String,
-//     required: true
-//   },
-//   attachments: [{
-//     filename: String,
-//     path: String,
-//     contentType: String,
-//     size: Number
-//   }],
-//   createdAt: {
-//     type: Date,
-//     default: Date.now
-//   }
-// });
-
-// module.exports = mongoose.model('Note', noteSchema);
-
 const mongoose = require('mongoose');
 const path = require('path');
 
 const noteSchema = new mongoose.Schema({
-  title: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  content: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  attachments: [{
-    filename: { type: String, required: true },
-    path: { type: String, required: true },
-    contentType: { type: String, required: true },
-    originalname: { type: String },
-    size: { type: Number, min: 1 }
-  }],
-  createdAt: {
-    type: Date,
-    default: Date.now
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now
-  }
+	title: {
+		type: String,
+		required: true,
+		trim: true
+	},
+	content: {
+		type: String,
+		required: true,
+		trim: true
+	},
+	attachments: [{
+		filename: { type: String, required: true },
+		path: { type: String, required: true },
+		contentType: { type: String, required: true },
+		originalname: { type: String },
+		size: { type: Number, min: 1 }
+	}],
+	labels: [{ type: String, trim: true }],
+	isPinned: { type: Boolean, default: false }, 
+	isFavourite: { type: Boolean, default: false }, 
+	createdAt: {
+		type: Date,
+		default: Date.now
+	},
+	updatedAt: {
+		type: Date,
+		default: Date.now
+	}
 });
 
+
 // Indexes
-noteSchema.index({ title: 'text', content: 'text' });
+noteSchema.index({ title: 'text', content: 'text', labels: 'text' }); // Include labels
 noteSchema.index({ createdAt: -1 });
+noteSchema.index({ isPinned: -1, createdAt: -1 }); // To sort pinned first
+noteSchema.index({ isFavourite: -1, createdAt: -1 }); // To sort favourites first
+noteSchema.index({ labels: 1 }); // For label filtering
+noteSchema.index({ attachments: 1 }); // For attachment filtering
 
 // Virtual for attachment URLs
 noteSchema.virtual('attachmentUrls').get(function() {

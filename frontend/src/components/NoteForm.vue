@@ -25,6 +25,21 @@
           </li>
         </ul>
       </div>
+      <div class="mb-3">
+        <label for="labels" class="form-label">Labels (comma-separated)</label>
+        <input type="text" class="form-control" id="labels" v-model="labelsInput" placeholder="e.g., work, urgent" />
+      </div>
+
+      <div class="form-check form-switch mb-2">
+        <input class="form-check-input" type="checkbox" id="isPinned" v-model="note.isPinned" />
+        <label class="form-check-label" for="isPinned">Pin this note</label>
+      </div>
+
+      <div class="form-check form-switch mb-4">
+        <input class="form-check-input" type="checkbox" id="isFavourite" v-model="note.isFavourite" />
+        <label class="form-check-label" for="isFavourite">Mark as favourite</label>
+      </div>
+
       <button type="submit" class="btn btn-primary">{{ id ? 'Update' : 'Create' }} Note</button>
     </form>
   </div>
@@ -40,8 +55,12 @@ export default {
       note: {
         title: '',
         content: '',
-        attachments: []
+        attachments: [],
+        isPinned: false,
+        isFavourite: false,
+        labels: []
       },
+      labelsInput: '',
       files: []
     };
   },
@@ -61,8 +80,17 @@ export default {
     async submitForm() {
       try {
         const formData = new FormData();
+
+        this.note.labels = this.labelsInput
+          .split(',')
+          .map(label => label.trim())
+          .filter(label => label.length > 0);
+
         formData.append('title', this.note.title);
         formData.append('content', this.note.content);
+        formData.append('isPinned', this.note.isPinned);
+        formData.append('isFavourite', this.note.isFavourite);
+        formData.append('labels', JSON.stringify(this.note.labels));
 
         // Append each file individually
         this.files.forEach(file => {
@@ -73,11 +101,11 @@ export default {
           headers: {
             'Content-Type': 'multipart/form-data'
           },
-          withCredentials: true // Important for CORS with credentials
+          withCredentials: true
         });
 
         this.$emit('note-created');
-        this.$router.push('/'); // Or wherever you want to redirect
+        this.$router.push('/');
       } catch (error) {
         console.error('Error submitting note:', error);
         if (error.response) {

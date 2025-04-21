@@ -4,8 +4,11 @@
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
       <div class="container-fluid">
         <span class="navbar-brand mb-0 h1">NoteTaker</span>
-        <button class="btn btn-success" @click="showCreateModal = true">Create Note</button>
+        <div class="d-flex gap-2">
+          <button class="btn btn-success" @click="showCreateModal = true">Create Note</button>
+        </div>
       </div>
+
     </nav>
 
     <!-- Create Note Modal -->
@@ -129,12 +132,38 @@
 
     <!-- Notes List -->
     <div class="container mt-4">
+
+      <div class="container mt-4 mb-3">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <input v-model="searchQuery" @input="fetchNotes" type="text" class="form-control"
+              placeholder="Search notes..." />
+          </div>
+          <div class="col-md-3">
+            <select v-model="selectedLabel" @change="fetchNotes" class="form-select">
+              <option value="">All Labels</option>
+              <option v-for="label in availableLabels" :key="label" :value="label">{{ label }}</option>
+            </select>
+          </div>
+          <div class="col-md-3">
+            <select v-model="sortOption" @change="fetchNotes" class="form-select">
+              <option value="pinned">Pinned First</option>
+              <option value="favourite">Favourites First</option>
+              <option value="recent">Most Recent</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+
       <div v-if="loadingNotes" class="text-center my-4">
         <div class="spinner-border text-primary" role="status">
           <span class="visually-hidden">Loading...</span>
         </div>
       </div>
 
+
+      
       <div v-else class="row">
         <div class="col-md-4 mb-4" v-for="note in notes" :key="note._id">
           <div class="card h-100">
@@ -169,6 +198,17 @@
                 <button class="btn btn-primary" @click="editNote(note)">Edit</button>
                 <button class="btn btn-danger" @click="deleteNote(note._id)">Delete</button>
                 <button class="btn btn-info" @click="viewNote(note)">View</button>
+                <!-- After the edit/view/delete buttons -->
+                <button class="btn btn-warning" @click="togglePin(note)"
+                  :class="{ 'btn-outline-warning': !note.isPinned }">
+                  <i :class="note.isPinned ? 'bi bi-pin-angle-fill' : 'bi bi-pin-angle'" />
+                </button>
+
+                <button class="btn btn-outline-danger" @click="toggleFavourite(note)"
+                  :class="{ 'btn-danger': note.isFavourite }">
+                  <i :class="note.isFavourite ? 'bi bi-heart-fill' : 'bi bi-heart'" />
+                </button>
+
               </div>
             </div>
           </div>
@@ -204,7 +244,12 @@ export default {
       newAttachments: [],
       deletedAttachments: [],
       fileSizeError: '',
-      MAX_FILE_SIZE: 5 * 1024 * 1024 // 5MB
+      MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB
+      searchQuery: '',
+      selectedLabel: '',
+      sortOption: 'pinned',
+      availableLabels: []
+
     };
   },
   mounted() {
@@ -227,10 +272,27 @@ export default {
     async fetchNotes() {
       this.loadingNotes = true;
       try {
-        const response = await axios.get('/api/notes');
-        this.notes = response.data;
+        console.log('Making request to:', '/api/notes');
+        const response = await axios.get('/api/notes', {
+          params: {
+            q: this.searchQuery || undefined,
+            label: this.selectedLabel || undefined,
+            sort: this.sortOption || 'pinned'
+          }
+        });
+
+        if (!response.data?.notes) {
+          console.warn('Notes array missing in response, using full response as fallback');
+          this.notes = Array.isArray(response.data) ? response.data : [];
+        } else {
+          this.notes = response.data.notes;
+        }
+
+        this.availableLabels = response.data?.availableLabels || [];
       } catch (error) {
-        console.error('Error fetching notes:', error);
+        console.error('API Error:', error);
+        console.error('Error Response:', error.response);
+        this.notes = [];
       } finally {
         this.loadingNotes = false;
       }
@@ -330,7 +392,29 @@ export default {
     handleNoteCreated() {
       this.showCreateModal = false;
       this.fetchNotes();
+    },
+    async togglePin(note) {
+      try {
+        await axios.patch(`/api/notes/${note._id}`, {
+          isPinned: !note.isPinned
+        });
+        this.fetchNotes();
+      } catch (error) {
+        console.error('Error toggling pin:', error);
+      }
+    },
+
+    async toggleFavourite(note) {
+      try {
+        await axios.patch(`/api/notes/${note._id}`, {
+          isFavourite: !note.isFavourite
+        });
+        this.fetchNotes();
+      } catch (error) {
+        console.error('Error toggling favourite:', error);
+      }
     }
+
   }
 };
 </script>
