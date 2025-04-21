@@ -33,20 +33,16 @@
           </div>
           <div class="modal-body">
             <p class="mb-4">{{ currentNote.content }}</p>
-            
+
             <div v-if="currentNote.attachments && currentNote.attachments.length">
               <h6>Attachments:</h6>
               <div class="row">
                 <div class="col-md-4 mb-3" v-for="(attachment, index) in currentNote.attachments" :key="index">
-                  <img v-if="isImage(attachment.contentType)" 
-                       :src="getAttachmentUrl(attachment.filename)" 
-                       class="img-fluid rounded" 
-                       style="max-height: 200px; object-fit: contain;"
-                       :alt="attachment.originalname" />
+                  <img v-if="isImage(attachment.contentType)" :src="getAttachmentUrl(attachment.filename)"
+                    class="img-fluid rounded" style="max-height: 200px; object-fit: contain;"
+                    :alt="attachment.originalname" />
                   <div v-else class="border p-2 rounded">
-                    <a :href="getAttachmentUrl(attachment.filename)" 
-                       download 
-                       class="text-decoration-none">
+                    <a :href="getAttachmentUrl(attachment.filename)" download class="text-decoration-none">
                       <i class="bi bi-file-earmark-arrow-down me-2"></i>
                       {{ attachment.originalname }}
                     </a>
@@ -80,45 +76,34 @@
                 <label class="form-label">Content</label>
                 <textarea class="form-control" v-model="editingNote.content" rows="5" required></textarea>
               </div>
-              
+
               <div class="mb-3">
                 <label class="form-label">Current Attachments</label>
                 <div class="d-flex flex-wrap gap-2 mb-3">
                   <div v-for="(attachment, index) in editingNote.attachments" :key="index" class="position-relative">
-                    <img v-if="isImage(attachment.contentType)" 
-                         :src="getAttachmentUrl(attachment.filename)" 
-                         class="img-thumbnail" 
-                         style="height: 100px; object-fit: cover;"
-                         :alt="attachment.originalname" />
+                    <img v-if="isImage(attachment.contentType)" :src="getAttachmentUrl(attachment.filename)"
+                      class="img-thumbnail" style="height: 100px; object-fit: cover;" :alt="attachment.originalname" />
                     <div v-else class="border p-2 rounded">
                       <i class="bi bi-file-earmark me-2"></i>
                       {{ attachment.originalname }}
                     </div>
-                    <button type="button" 
-                            class="btn btn-sm btn-danger position-absolute top-0 end-0"
-                            @click="removeAttachment(index)"
-                            :disabled="isSaving">
+                    <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0"
+                      @click="removeAttachment(index)" :disabled="isSaving">
                       <i class="bi bi-trash"></i>
                     </button>
                   </div>
                 </div>
               </div>
-              
+
               <div class="mb-3">
                 <label class="form-label">Add New Attachments (max 5MB each)</label>
-                <input type="file" 
-                       class="form-control" 
-                       multiple 
-                       @change="handleFileUpload"
-                       :disabled="isSaving">
+                <input type="file" class="form-control" multiple @change="handleFileUpload" :disabled="isSaving">
                 <div v-if="newAttachments.length" class="mt-2">
-                  <div v-for="(file, index) in newAttachments" :key="'new-'+index" class="d-inline-block me-2">
+                  <div v-for="(file, index) in newAttachments" :key="'new-' + index" class="d-inline-block me-2">
                     <span class="badge bg-secondary">
                       {{ file.name }} ({{ formatFileSize(file.size) }})
-                      <button type="button" 
-                              class="btn-close btn-close-white btn-sm ms-1" 
-                              @click="removeNewAttachment(index)"
-                              :disabled="isSaving"></button>
+                      <button type="button" class="btn-close btn-close-white btn-sm ms-1"
+                        @click="removeNewAttachment(index)" :disabled="isSaving"></button>
                     </span>
                   </div>
                 </div>
@@ -126,17 +111,12 @@
                   {{ fileSizeError }}
                 </div>
               </div>
-              
+
               <div class="modal-footer">
-                <button type="button" 
-                        class="btn btn-secondary" 
-                        @click="cancelEdit"
-                        :disabled="isSaving">
+                <button type="button" class="btn btn-secondary" @click="cancelEdit" :disabled="isSaving">
                   Cancel
                 </button>
-                <button type="submit" 
-                        class="btn btn-primary" 
-                        :disabled="isSaving">
+                <button type="submit" class="btn btn-primary" :disabled="isSaving">
                   <span v-if="isSaving" class="spinner-border spinner-border-sm me-1"></span>
                   {{ isSaving ? 'Saving...' : 'Save Changes' }}
                 </button>
@@ -154,26 +134,37 @@
           <span class="visually-hidden">Loading...</span>
         </div>
       </div>
-      
+
       <div v-else class="row">
         <div class="col-md-4 mb-4" v-for="note in notes" :key="note._id">
           <div class="card h-100">
             <div class="card-body">
               <h5 class="card-title">{{ note.title }}</h5>
               <p class="card-text">{{ note.content }}</p>
-              
-              <div v-if="note.attachments && note.attachments.length" class="mt-3">
-                <div class="d-flex flex-wrap gap-2">
-                  <div v-for="(attachment, index) in note.attachments.slice(0, 1)" :key="index">
-                    <img v-if="isImage(attachment.contentType)" 
-                         :src="getAttachmentUrl(attachment.filename)" 
-                         class="img-thumbnail" 
-                         style="max-height: 100px; max-width: 100%; object-fit: contain;"
-                         :alt="attachment.originalname" />
+
+              <div v-if="note.attachments && note.attachments.length"
+                class="mt-3 d-flex align-items-center gap-2 flex-wrap">
+                <!-- First 3 attachments -->
+                <div v-for="(attachment, index) in note.attachments.slice(0, 3)" :key="index">
+                  <img v-if="isImage(attachment.contentType)" :src="getAttachmentUrl(attachment.filename)"
+                    class="img-thumbnail" style="max-height: 100px; max-width: 100px; object-fit: contain;"
+                    :alt="attachment.originalname" />
+                  <div v-else class="border p-2 rounded text-center" style="width: 100px; height: 100px;">
+                    <i class="bi bi-file-earmark" style="font-size: 2rem;"></i>
+                    <div style="font-size: 0.8rem;">{{ attachment.originalname }}</div>
                   </div>
                 </div>
+
+                <!-- "+N more" counter -->
+                <div v-if="note.attachments.length > 3"
+                  class="d-flex justify-content-center align-items-center bg-secondary text-white rounded"
+                  style="width: 50px; height: 50px; font-weight: bold;">
+                  +{{ note.attachments.length - 3 }}
+                </div>
               </div>
-              
+
+
+
               <div class="mt-3 d-flex gap-2">
                 <button class="btn btn-primary" @click="editNote(note)">Edit</button>
                 <button class="btn btn-danger" @click="deleteNote(note._id)">Delete</button>
@@ -259,7 +250,7 @@ export default {
     async updateNote() {
       this.isSaving = true;
       this.fileSizeError = '';
-      
+
       try {
         // Validate file sizes
         const oversizedFiles = this.newAttachments.filter(file => file.size > this.MAX_FILE_SIZE);
@@ -272,7 +263,7 @@ export default {
         formData.append('title', this.editingNote.title);
         formData.append('content', this.editingNote.content);
         formData.append('attachments', JSON.stringify(this.editingNote.attachments));
-        
+
         // Add new files
         this.newAttachments.forEach(file => {
           formData.append('newAttachments', file);
@@ -288,7 +279,7 @@ export default {
         // Then delete any removed attachments
         if (this.deletedAttachments.length) {
           await Promise.all(
-            this.deletedAttachments.map(filename => 
+            this.deletedAttachments.map(filename =>
               axios.delete(`/api/notes/${this.editingNote._id}/attachments/${filename}`)
             )
           );
@@ -324,12 +315,12 @@ export default {
     },
     async deleteNote(id) {
       //if (confirm('Are you sure you want to delete this note?')) {
-        try {
-          await axios.delete(`/api/notes/${id}`);
-          this.fetchNotes();
-        } catch (error) {
-          console.error('Error deleting note:', error);
-        }
+      try {
+        await axios.delete(`/api/notes/${id}`);
+        this.fetchNotes();
+      } catch (error) {
+        console.error('Error deleting note:', error);
+      }
       //}
     },
     viewNote(note) {
@@ -369,7 +360,7 @@ export default {
 
 .card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
 }
 
 .img-thumbnail {
