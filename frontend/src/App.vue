@@ -91,7 +91,8 @@
               <div class="mb-3">
                 <label class="form-label">Labels</label>
                 <div class="d-flex flex-wrap gap-2 mb-2">
-                  <span v-for="(label, index) in editingNote.labels" :key="index" class="badge bg-primary">
+                  <span v-for="(label, index) in editingNote.labels" :key="index"
+                    class="badge bg-primary d-flex align-items-center">
                     {{ label }}
                     <button type="button" class="btn-close btn-close-white btn-sm ms-1" @click="removeLabel(index)"
                       :disabled="isSaving"></button>
@@ -99,12 +100,15 @@
                 </div>
                 <div class="input-group">
                   <input type="text" class="form-control" v-model="newLabel" placeholder="Add label..."
-                    @keydown.enter.prevent="addLabel" :disabled="isSaving">
+                    @keydown.enter.prevent="addLabel" :disabled="isSaving" list="labelSuggestions">
                   <button class="btn btn-outline-secondary" type="button" @click="addLabel"
                     :disabled="isSaving || !newLabel.trim()">
                     Add
                   </button>
                 </div>
+                <datalist id="labelSuggestions">
+                  <option v-for="label in availableLabels" :key="label" :value="label"></option>
+                </datalist>
                 <div v-if="availableLabels.length" class="mt-2">
                   <small class="text-muted">Available labels:</small>
                   <div class="d-flex flex-wrap gap-1 mt-1">
@@ -185,9 +189,9 @@
           </div>
           <div class="col-md-3">
             <select v-model="sortOption" @change="fetchNotes" class="form-select">
-              <option value="pinned">Pinned First</option>
-              <option value="favourite">Favorites First</option>
-              <option value="recent">Most Recent</option>
+              <option v-for="option in sortOptions" :key="option.value" :value="option.value">
+                {{ option.text }}
+              </option>
             </select>
           </div>
         </div>
@@ -209,13 +213,6 @@
                 </div>
                 <h5 class="card-title">{{ note.title }}</h5>
                 <p class="card-text">{{ note.content }}</p>
-
-                <!-- Labels -->
-                <!-- <div v-if="note.labels && note.labels.length" class="mt-2 d-flex flex-wrap gap-1">
-                  <span v-for="(label, index) in note.labels" :key="index" class="badge bg-primary">
-                    {{ label }}
-                  </span>
-                </div> -->
 
                 <!-- Attachments Preview -->
                 <div v-if="note.attachments && note.attachments.length"
@@ -249,8 +246,8 @@
                   <button class="btn btn-info" @click="viewNote(note)">
                     <i class="bi bi-eye"></i> View
                   </button>
-                  <button class="btn btn-warning" @click="togglePin(note)"
-                    :class="{ 'btn-outline-warning': !note.isPinned }">
+                  <button class="btn btn-outline-warning" @click="togglePin(note)"
+                    :class="{ 'btn-warning': note.isPinned }">
                     <i :class="note.isPinned ? 'bi bi-pin-angle-fill' : 'bi bi-pin-angle'"></i>
                   </button>
                   <button class="btn btn-outline-danger" @click="toggleFavourite(note)"
@@ -282,13 +279,6 @@
                 <h5 class="card-title">{{ note.title }}</h5>
                 <p class="card-text">{{ note.content }}</p>
 
-                <!-- Labels -->
-                <!-- <div v-if="note.labels && note.labels.length" class="mt-2 d-flex flex-wrap gap-1">
-                  <span v-for="(label, index) in note.labels" :key="index" class="badge bg-primary">
-                    {{ label }}
-                  </span>
-                </div> -->
-
                 <!-- Attachments Preview -->
                 <div v-if="note.attachments && note.attachments.length"
                   class="mt-3 d-flex align-items-center gap-2 flex-wrap">
@@ -321,8 +311,8 @@
                   <button class="btn btn-info" @click="viewNote(note)">
                     <i class="bi bi-eye"></i> View
                   </button>
-                  <button class="btn btn-warning" @click="togglePin(note)"
-                    :class="{ 'btn-outline-warning': !note.isPinned }">
+                  <button class="btn btn-outline-warning" @click="togglePin(note)"
+                    :class="{ 'btn-warning': note.isPinned }">
                     <i :class="note.isPinned ? 'bi bi-pin-angle-fill' : 'bi bi-pin-angle'"></i>
                   </button>
                   <button class="btn btn-outline-danger" @click="toggleFavourite(note)"
@@ -380,6 +370,13 @@ export default {
       searchQuery: '',
       selectedLabel: '',
       sortOption: 'pinned',
+      sortOptions: [
+        { value: 'pinned', text: 'Pinned First' },
+        { value: 'favourite', text: 'Favorites First' },
+        { value: 'recent', text: 'Most Recent' },
+        { value: 'title-asc', text: 'Title (A-Z)' },
+        { value: 'title-desc', text: 'Title (Z-A)' }
+      ],
       availableLabels: []
     };
   },
@@ -420,10 +417,16 @@ export default {
           }
         });
 
-        // Handle both array and object responses
-        this.notes = Array.isArray(response.data)
-          ? response.data
-          : response.data.notes || [];
+        // Handle the response format from your backend
+        this.notes = response.data.notes || [];
+        this.availableLabels = response.data.availableLabels || [];
+
+        // Apply client-side sorting for title sorting (as your backend doesn't handle it)
+        if (this.sortOption === 'title-asc') {
+          this.notes.sort((a, b) => a.title.localeCompare(b.title));
+        } else if (this.sortOption === 'title-desc') {
+          this.notes.sort((a, b) => b.title.localeCompare(a.title));
+        }
 
       } catch (error) {
         console.error('Error fetching notes:', error);
@@ -434,20 +437,20 @@ export default {
     async fetchAvailableLabels() {
       try {
         const response = await axios.get('/api/notes/labels');
-        // Filter out empty/null labels and ensure uniqueness
-        this.availableLabels = [...new Set(response.data.filter(label => label && label.trim()))];
+        this.availableLabels = response.data || [];
       } catch (error) {
         console.error('Error fetching labels:', error);
         this.availableLabels = [];
       }
     },
+
     addLabel() {
       const trimmedLabel = this.newLabel.trim();
       if (trimmedLabel && !this.editingNote.labels.includes(trimmedLabel)) {
         this.editingNote.labels.push(trimmedLabel);
         this.newLabel = '';
 
-        // Immediately update availableLabels if this is a new label
+        // Update availableLabels if it's a new label
         if (!this.availableLabels.includes(trimmedLabel)) {
           this.availableLabels = [...this.availableLabels, trimmedLabel].sort();
         }
@@ -480,34 +483,20 @@ export default {
         }
 
         const formData = new FormData();
-
-        // Append all fields individually
         formData.append('title', this.editingNote.title);
         formData.append('content', this.editingNote.content);
-
-        // Stringify arrays before appending
         formData.append('labels', JSON.stringify(this.editingNote.labels || []));
         formData.append('attachments', JSON.stringify(this.editingNote.attachments || []));
 
-        // Add new files with proper field name
-        this.newAttachments.forEach((file, index) => {
-          formData.append(`newAttachments`, file); // Note: Same field name for all files
+        // Add new files
+        this.newAttachments.forEach(file => {
+          formData.append('newAttachments', file);
         });
 
-        // Debug: Log FormData contents
-        for (let [key, value] of formData.entries()) {
-          console.log(key, value);
-        }
-
         // First update the note with new data
-        const response = await axios.put(`/api/notes/${this.editingNote._id}`, formData, {
+        await axios.put(`/api/notes/${this.editingNote._id}`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
-          },
-          transformRequest: (data, headers) => {
-            // Remove Content-Type header to let browser set it with boundary
-            delete headers['Content-Type'];
-            return data;
           }
         });
 
@@ -525,7 +514,6 @@ export default {
         this.fetchAvailableLabels();
       } catch (error) {
         console.error('Error updating note:', error);
-        console.error('Error details:', error.response?.data);
         this.fileSizeError = error.response?.data?.error || 'Failed to save changes. Please try again.';
       } finally {
         this.isSaving = false;
@@ -544,12 +532,6 @@ export default {
     },
     removeNewAttachment(index) {
       this.newAttachments.splice(index, 1);
-    },
-    addLabel() {
-      if (this.newLabel.trim() && !this.editingNote.labels.includes(this.newLabel.trim())) {
-        this.editingNote.labels.push(this.newLabel.trim());
-        this.newLabel = '';
-      }
     },
     removeLabel(index) {
       this.editingNote.labels.splice(index, 1);
@@ -691,5 +673,25 @@ export default {
 .label-badge:hover {
   opacity: 0.8;
   transform: translateY(-1px);
+}
+
+.btn-outline-warning {
+  border-color: #ffc107;
+  color: #ffc107;
+}
+
+.btn-outline-warning:hover {
+  background-color: #ffc107;
+  color: #000;
+}
+
+.btn-outline-danger {
+  border-color: #dc3545;
+  color: #dc3545;
+}
+
+.btn-outline-danger:hover {
+  background-color: #dc3545;
+  color: #fff;
 }
 </style>

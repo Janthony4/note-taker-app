@@ -94,37 +94,39 @@ app.post('/api/notes', upload.array('attachments'), async (req, res) => {
 // In your backend (index.js or routes file)
 app.get('/api/notes', async (req, res) => {
 	try {
-	  const { q, label, sort } = req.query;
-	  
-	  let query = {};
-	  if (q) {
-		query.$or = [
-		  { title: { $regex: q, $options: 'i' } },
-		  { content: { $regex: q, $options: 'i' } }
-		];
-	  }
-	  
-	  if (label) {
-		query.labels = label;
-	  }
-  
-	  let sortOption = { createdAt: -1 };
-	  if (sort === 'pinned') sortOption = { isPinned: -1, createdAt: -1 };
-	  else if (sort === 'favourite') sortOption = { isFavourite: -1, createdAt: -1 };
-  
-	  const notes = await Note.find(query).sort(sortOption);
-	  const availableLabels = await Note.distinct('labels');
-  
-	  res.json({ 
-		notes,
-		availableLabels 
-	  });
-	  
+		const { q, label, sort } = req.query;
+
+		let query = {};
+		if (q) {
+			query.$or = [
+				{ title: { $regex: q, $options: 'i' } },
+				{ content: { $regex: q, $options: 'i' } }
+			];
+		}
+
+		if (label) {
+			query.labels = label;
+		}
+
+		let sortOption = { createdAt: -1 };
+		if (sort === 'pinned') sortOption = { isPinned: -1, createdAt: -1 };
+		else if (sort === 'favourite') sortOption = { isFavourite: -1, createdAt: -1 };
+		else if (sort === 'title-asc') sortOption = { title: 1 }; // Add these
+		else if (sort === 'title-desc') sortOption = { title: -1 }; // Add these
+
+		const notes = await Note.find(query).sort(sortOption);
+		const availableLabels = await Note.distinct('labels');
+
+		res.json({
+			notes,
+			availableLabels
+		});
+
 	} catch (error) {
-	  console.error('Error fetching notes:', error);
-	  res.status(500).json({ error: 'Failed to fetch notes' });
+		console.error('Error fetching notes:', error);
+		res.status(500).json({ error: 'Failed to fetch notes' });
 	}
-  });
+});
 
 app.patch('/api/notes/:id', async (req, res) => {
 	try {
@@ -182,40 +184,40 @@ app.delete('/api/notes/:id', async (req, res) => {
 // In your index.js
 app.put('/api/notes/:id', upload.array('newAttachments'), async (req, res) => {
 	try {
-	  const { id } = req.params;
-	  const { title, content } = req.body;
-	  
-	  // Parse the JSON strings from form data
-	  const labels = req.body.labels ? JSON.parse(req.body.labels) : [];
-	  const attachments = req.body.attachments ? JSON.parse(req.body.attachments) : [];
-  
-	  // Process new attachments
-	  const newAttachments = req.files?.map(file => ({
-		filename: file.filename,
-		originalname: file.originalname,
-		path: file.path,
-		contentType: file.mimetype,
-		size: file.size
-	  })) || [];
-  
-	  // Combine all data
-	  const updateData = {
-		title,
-		content,
-		labels,
-		attachments: [...attachments, ...newAttachments]
-	  };
-  
-	  const note = await Note.findByIdAndUpdate(id, updateData, { new: true });
-	  res.json(note);
+		const { id } = req.params;
+		const { title, content } = req.body;
+
+		// Parse the JSON strings from form data
+		const labels = req.body.labels ? JSON.parse(req.body.labels) : [];
+		const attachments = req.body.attachments ? JSON.parse(req.body.attachments) : [];
+
+		// Process new attachments
+		const newAttachments = req.files?.map(file => ({
+			filename: file.filename,
+			originalname: file.originalname,
+			path: file.path,
+			contentType: file.mimetype,
+			size: file.size
+		})) || [];
+
+		// Combine all data
+		const updateData = {
+			title,
+			content,
+			labels,
+			attachments: [...attachments, ...newAttachments]
+		};
+
+		const note = await Note.findByIdAndUpdate(id, updateData, { new: true });
+		res.json(note);
 	} catch (error) {
-	  console.error('Error updating note:', error);
-	  res.status(500).json({ 
-		error: 'Failed to update note',
-		details: error.message 
-	  });
+		console.error('Error updating note:', error);
+		res.status(500).json({
+			error: 'Failed to update note',
+			details: error.message
+		});
 	}
-  });
+});
 
 app.delete('/api/notes/:id/attachments/:filename', async (req, res) => {
 	try {
@@ -242,17 +244,17 @@ app.delete('/api/notes/:id/attachments/:filename', async (req, res) => {
 });
 app.get('/api/notes/labels', async (req, res) => {
 	try {
-	  // Use distinct to get all unique labels
-	  const labels = await Note.distinct('labels');
-	  // Filter out empty/null labels and sort alphabetically
-	  const filteredLabels = labels
-		.filter(label => label && label.trim())
-		.sort((a, b) => a.localeCompare(b));
-	  res.json(filteredLabels);
+		// Use distinct to get all unique labels
+		const labels = await Note.distinct('labels');
+		// Filter out empty/null labels and sort alphabetically
+		const filteredLabels = labels
+			.filter(label => label && label.trim())
+			.sort((a, b) => a.localeCompare(b));
+		res.json(filteredLabels);
 	} catch (error) {
-	  res.status(500).json({ error: error.message });
+		res.status(500).json({ error: error.message });
 	}
-  });
+});
 app.listen(port, () => {
 	console.log(`Backend running on port ${port}`);
 });
