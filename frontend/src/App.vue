@@ -246,13 +246,13 @@
                   <button class="btn btn-info" @click="viewNote(note)">
                     <i class="bi bi-eye"></i> View
                   </button>
-                  <button class="btn btn-outline-warning" @click="togglePin(note)"
-                    :class="{ 'btn-warning': note.isPinned }">
-                    <i :class="note.isPinned ? 'bi bi-pin-angle-fill' : 'bi bi-pin-angle'"></i>
+                  <button class="btn" @click="togglePin(note)"
+                    :class="note.isPinned ? 'btn-warning' : 'btn-outline-warning'">
+                    <i :class="note.isPinned ? 'bi bi-pin-angle-fill text-white' : 'bi bi-pin-angle'"></i>
                   </button>
-                  <button class="btn btn-outline-danger" @click="toggleFavourite(note)"
-                    :class="{ 'btn-danger': note.isFavourite }">
-                    <i :class="note.isFavourite ? 'bi bi-heart-fill' : 'bi bi-heart'"></i>
+                  <button class="btn" @click="toggleFavourite(note)"
+                    :class="note.isFavourite ? 'btn-danger' : 'btn-outline-danger'">
+                    <i :class="note.isFavourite ? 'bi bi-heart-fill text-white' : 'bi bi-heart'"></i>
                   </button>
                 </div>
               </div>
@@ -311,13 +311,13 @@
                   <button class="btn btn-info" @click="viewNote(note)">
                     <i class="bi bi-eye"></i> View
                   </button>
-                  <button class="btn btn-outline-warning" @click="togglePin(note)"
-                    :class="{ 'btn-warning': note.isPinned }">
-                    <i :class="note.isPinned ? 'bi bi-pin-angle-fill' : 'bi bi-pin-angle'"></i>
+                  <button class="btn" @click="togglePin(note)"
+                    :class="note.isPinned ? 'btn-warning' : 'btn-outline-warning'">
+                    <i :class="note.isPinned ? 'bi bi-pin-angle-fill text-white' : 'bi bi-pin-angle'"></i>
                   </button>
-                  <button class="btn btn-outline-danger" @click="toggleFavourite(note)"
-                    :class="{ 'btn-danger': note.isFavourite }">
-                    <i :class="note.isFavourite ? 'bi bi-heart-fill' : 'bi bi-heart'"></i>
+                  <button class="btn" @click="toggleFavourite(note)"
+                    :class="note.isFavourite ? 'btn-danger' : 'btn-outline-danger'">
+                    <i :class="note.isFavourite ? 'bi bi-heart-fill text-white' : 'bi bi-heart'"></i>
                   </button>
                 </div>
               </div>
@@ -546,7 +546,7 @@ export default {
       }
     },
     async deleteNote(id) {
-      if (confirm('Are you sure you want to delete this note?')) {
+      // if (confirm('Are you sure you want to delete this note?')) {
         try {
           await axios.delete(`/api/notes/${id}`);
           this.fetchNotes();
@@ -554,7 +554,7 @@ export default {
         } catch (error) {
           console.error('Error deleting note:', error);
         }
-      }
+      // }
     },
     viewNote(note) {
       this.currentNote = note;
