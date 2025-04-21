@@ -4,11 +4,10 @@
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
       <div class="container-fluid">
         <span class="navbar-brand mb-0 h1">NoteTaker</span>
-        <div class="d-flex gap-2">
-          <button class="btn btn-success" @click="showCreateModal = true">Create Note</button>
-        </div>
+        <button class="btn btn-success" @click="showCreateModal = true">
+          <i class="bi bi-plus-lg"></i> Create Note
+        </button>
       </div>
-
     </nav>
 
     <!-- Create Note Modal -->
@@ -36,6 +35,14 @@
           </div>
           <div class="modal-body">
             <p class="mb-4">{{ currentNote.content }}</p>
+
+            <div v-if="currentNote.labels && currentNote.labels.length" class="mb-3">
+              <div class="d-flex flex-wrap gap-1">
+                <span v-for="(label, index) in currentNote.labels" :key="index" class="badge bg-primary">
+                  {{ label }}
+                </span>
+              </div>
+            </div>
 
             <div v-if="currentNote.attachments && currentNote.attachments.length">
               <h6>Attachments:</h6>
@@ -67,7 +74,7 @@
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">Edit Note</h5>
-            <button type="button" class="btn-close" @click="cancelEdit">Cancel</button>
+            <button type="button" class="btn-close" @click="cancelEdit"></button>
           </div>
           <div class="modal-body">
             <form @submit.prevent="updateNote">
@@ -78,6 +85,35 @@
               <div class="mb-3">
                 <label class="form-label">Content</label>
                 <textarea class="form-control" v-model="editingNote.content" rows="5" required></textarea>
+              </div>
+
+              <!-- Labels Section -->
+              <div class="mb-3">
+                <label class="form-label">Labels</label>
+                <div class="d-flex flex-wrap gap-2 mb-2">
+                  <span v-for="(label, index) in editingNote.labels" :key="index" class="badge bg-primary">
+                    {{ label }}
+                    <button type="button" class="btn-close btn-close-white btn-sm ms-1" @click="removeLabel(index)"
+                      :disabled="isSaving"></button>
+                  </span>
+                </div>
+                <div class="input-group">
+                  <input type="text" class="form-control" v-model="newLabel" placeholder="Add label..."
+                    @keydown.enter.prevent="addLabel" :disabled="isSaving">
+                  <button class="btn btn-outline-secondary" type="button" @click="addLabel"
+                    :disabled="isSaving || !newLabel.trim()">
+                    Add
+                  </button>
+                </div>
+                <div v-if="availableLabels.length" class="mt-2">
+                  <small class="text-muted">Available labels:</small>
+                  <div class="d-flex flex-wrap gap-1 mt-1">
+                    <button v-for="label in availableLabels" :key="label" class="btn btn-sm btn-outline-secondary"
+                      @click="addExistingLabel(label)" :disabled="editingNote.labels.includes(label) || isSaving">
+                      {{ label }}
+                    </button>
+                  </div>
+                </div>
               </div>
 
               <div class="mb-3">
@@ -132,7 +168,7 @@
 
     <!-- Notes List -->
     <div class="container mt-4">
-
+      <!-- Search and Filter Controls -->
       <div class="container mt-4 mb-3">
         <div class="row g-3">
           <div class="col-md-4">
@@ -141,78 +177,172 @@
           </div>
           <div class="col-md-3">
             <select v-model="selectedLabel" @change="fetchNotes" class="form-select">
-              <option value="">All Labels</option>
-              <option v-for="label in availableLabels" :key="label" :value="label">{{ label }}</option>
+              <option value="">All Labels ({{ availableLabels.length }})</option>
+              <option v-for="label in availableLabels" :key="label" :value="label">
+                {{ label }}
+              </option>
             </select>
           </div>
           <div class="col-md-3">
             <select v-model="sortOption" @change="fetchNotes" class="form-select">
               <option value="pinned">Pinned First</option>
-              <option value="favourite">Favourites First</option>
+              <option value="favourite">Favorites First</option>
               <option value="recent">Most Recent</option>
             </select>
           </div>
         </div>
       </div>
 
+      <!-- Pinned Notes Section -->
+      <div v-if="pinnedNotes.length > 0" class="mb-5">
+        <h4 class="mb-3 border-bottom pb-2">
+          <i class="bi bi-pin-angle-fill me-2"></i> Pinned Notes
+        </h4>
+        <div class="row">
+          <div class="col-md-4 mb-4" v-for="note in pinnedNotes" :key="note._id">
+            <div class="card h-100 pinned-highlight">
+              <div class="card-body">
+                <div v-if="note.labels && note.labels.length" class="mb-2 d-flex flex-wrap gap-1">
+                  <span v-for="(label, index) in note.labels" :key="index" class="badge bg-primary">
+                    {{ label }}
+                  </span>
+                </div>
+                <h5 class="card-title">{{ note.title }}</h5>
+                <p class="card-text">{{ note.content }}</p>
 
-      <div v-if="loadingNotes" class="text-center my-4">
-        <div class="spinner-border text-primary" role="status">
-          <span class="visually-hidden">Loading...</span>
-        </div>
-      </div>
+                <!-- Labels -->
+                <!-- <div v-if="note.labels && note.labels.length" class="mt-2 d-flex flex-wrap gap-1">
+                  <span v-for="(label, index) in note.labels" :key="index" class="badge bg-primary">
+                    {{ label }}
+                  </span>
+                </div> -->
 
+                <!-- Attachments Preview -->
+                <div v-if="note.attachments && note.attachments.length"
+                  class="mt-3 d-flex align-items-center gap-2 flex-wrap">
+                  <div v-for="(attachment, index) in note.attachments.slice(0, 3)" :key="index">
+                    <img v-if="isImage(attachment.contentType)" :src="getAttachmentUrl(attachment.filename)"
+                      class="img-thumbnail" style="max-height: 100px; max-width: 100px; object-fit: contain;"
+                      :alt="attachment.originalname" />
+                    <div v-else class="border p-2 rounded text-center" style="width: 100px; height: 100px;">
+                      <i class="bi bi-file-earmark" style="font-size: 2rem;"></i>
+                      <div style="font-size: 0.8rem;">{{ attachment.originalname }}</div>
+                    </div>
+                  </div>
 
-      
-      <div v-else class="row">
-        <div class="col-md-4 mb-4" v-for="note in notes" :key="note._id">
-          <div class="card h-100">
-            <div class="card-body">
-              <h5 class="card-title">{{ note.title }}</h5>
-              <p class="card-text">{{ note.content }}</p>
-
-              <div v-if="note.attachments && note.attachments.length"
-                class="mt-3 d-flex align-items-center gap-2 flex-wrap">
-                <!-- First 3 attachments -->
-                <div v-for="(attachment, index) in note.attachments.slice(0, 3)" :key="index">
-                  <img v-if="isImage(attachment.contentType)" :src="getAttachmentUrl(attachment.filename)"
-                    class="img-thumbnail" style="max-height: 100px; max-width: 100px; object-fit: contain;"
-                    :alt="attachment.originalname" />
-                  <div v-else class="border p-2 rounded text-center" style="width: 100px; height: 100px;">
-                    <i class="bi bi-file-earmark" style="font-size: 2rem;"></i>
-                    <div style="font-size: 0.8rem;">{{ attachment.originalname }}</div>
+                  <!-- "+N more" counter -->
+                  <div v-if="note.attachments.length > 3"
+                    class="d-flex justify-content-center align-items-center bg-secondary text-white rounded"
+                    style="width: 50px; height: 50px; font-weight: bold;">
+                    +{{ note.attachments.length - 3 }}
                   </div>
                 </div>
 
-                <!-- "+N more" counter -->
-                <div v-if="note.attachments.length > 3"
-                  class="d-flex justify-content-center align-items-center bg-secondary text-white rounded"
-                  style="width: 50px; height: 50px; font-weight: bold;">
-                  +{{ note.attachments.length - 3 }}
+                <!-- Action Buttons -->
+                <div class="mt-3 d-flex gap-2">
+                  <button class="btn btn-primary" @click="editNote(note)">
+                    <i class="bi bi-pencil"></i> Edit
+                  </button>
+                  <button class="btn btn-danger" @click="deleteNote(note._id)">
+                    <i class="bi bi-trash"></i> Delete
+                  </button>
+                  <button class="btn btn-info" @click="viewNote(note)">
+                    <i class="bi bi-eye"></i> View
+                  </button>
+                  <button class="btn btn-warning" @click="togglePin(note)"
+                    :class="{ 'btn-outline-warning': !note.isPinned }">
+                    <i :class="note.isPinned ? 'bi bi-pin-angle-fill' : 'bi bi-pin-angle'"></i>
+                  </button>
+                  <button class="btn btn-outline-danger" @click="toggleFavourite(note)"
+                    :class="{ 'btn-danger': note.isFavourite }">
+                    <i :class="note.isFavourite ? 'bi bi-heart-fill' : 'bi bi-heart'"></i>
+                  </button>
                 </div>
-              </div>
-
-
-
-              <div class="mt-3 d-flex gap-2">
-                <button class="btn btn-primary" @click="editNote(note)">Edit</button>
-                <button class="btn btn-danger" @click="deleteNote(note._id)">Delete</button>
-                <button class="btn btn-info" @click="viewNote(note)">View</button>
-                <!-- After the edit/view/delete buttons -->
-                <button class="btn btn-warning" @click="togglePin(note)"
-                  :class="{ 'btn-outline-warning': !note.isPinned }">
-                  <i :class="note.isPinned ? 'bi bi-pin-angle-fill' : 'bi bi-pin-angle'" />
-                </button>
-
-                <button class="btn btn-outline-danger" @click="toggleFavourite(note)"
-                  :class="{ 'btn-danger': note.isFavourite }">
-                  <i :class="note.isFavourite ? 'bi bi-heart-fill' : 'bi bi-heart'" />
-                </button>
-
               </div>
             </div>
           </div>
         </div>
+      </div>
+
+      <!-- Divider -->
+      <div v-if="pinnedNotes.length > 0 && otherNotes.length > 0" class="my-4 border-bottom"></div>
+
+      <!-- Other Notes Section -->
+      <div v-if="otherNotes.length > 0">
+        <h4 class="mb-3">All Notes</h4>
+        <div class="row">
+          <div class="col-md-4 mb-4" v-for="note in otherNotes" :key="note._id">
+            <div class="card h-100">
+              <div class="card-body">
+                <div v-if="note.labels && note.labels.length" class="mb-2 d-flex flex-wrap gap-1">
+                  <span v-for="(label, index) in note.labels" :key="index" class="badge bg-primary">
+                    {{ label }}
+                  </span>
+                </div>
+                <h5 class="card-title">{{ note.title }}</h5>
+                <p class="card-text">{{ note.content }}</p>
+
+                <!-- Labels -->
+                <!-- <div v-if="note.labels && note.labels.length" class="mt-2 d-flex flex-wrap gap-1">
+                  <span v-for="(label, index) in note.labels" :key="index" class="badge bg-primary">
+                    {{ label }}
+                  </span>
+                </div> -->
+
+                <!-- Attachments Preview -->
+                <div v-if="note.attachments && note.attachments.length"
+                  class="mt-3 d-flex align-items-center gap-2 flex-wrap">
+                  <div v-for="(attachment, index) in note.attachments.slice(0, 3)" :key="index">
+                    <img v-if="isImage(attachment.contentType)" :src="getAttachmentUrl(attachment.filename)"
+                      class="img-thumbnail" style="max-height: 100px; max-width: 100px; object-fit: contain;"
+                      :alt="attachment.originalname" />
+                    <div v-else class="border p-2 rounded text-center" style="width: 100px; height: 100px;">
+                      <i class="bi bi-file-earmark" style="font-size: 2rem;"></i>
+                      <div style="font-size: 0.8rem;">{{ attachment.originalname }}</div>
+                    </div>
+                  </div>
+
+                  <!-- "+N more" counter -->
+                  <div v-if="note.attachments.length > 3"
+                    class="d-flex justify-content-center align-items-center bg-secondary text-white rounded"
+                    style="width: 50px; height: 50px; font-weight: bold;">
+                    +{{ note.attachments.length - 3 }}
+                  </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="mt-3 d-flex gap-2">
+                  <button class="btn btn-primary" @click="editNote(note)">
+                    <i class="bi bi-pencil"></i> Edit
+                  </button>
+                  <button class="btn btn-danger" @click="deleteNote(note._id)">
+                    <i class="bi bi-trash"></i> Delete
+                  </button>
+                  <button class="btn btn-info" @click="viewNote(note)">
+                    <i class="bi bi-eye"></i> View
+                  </button>
+                  <button class="btn btn-warning" @click="togglePin(note)"
+                    :class="{ 'btn-outline-warning': !note.isPinned }">
+                    <i :class="note.isPinned ? 'bi bi-pin-angle-fill' : 'bi bi-pin-angle'"></i>
+                  </button>
+                  <button class="btn btn-outline-danger" @click="toggleFavourite(note)"
+                    :class="{ 'btn-danger': note.isFavourite }">
+                    <i :class="note.isFavourite ? 'bi bi-heart-fill' : 'bi bi-heart'"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div v-if="!loadingNotes && notes.length === 0" class="text-center py-5">
+        <i class="bi bi-journal-text" style="font-size: 3rem; opacity: 0.5;"></i>
+        <h4 class="mt-3">No notes found</h4>
+        <button class="btn btn-primary mt-2" @click="showCreateModal = true">
+          <i class="bi bi-plus-lg me-1"></i> Create Your First Note
+        </button>
       </div>
     </div>
   </div>
@@ -239,21 +369,31 @@ export default {
         _id: '',
         title: '',
         content: '',
+        labels: [],
         attachments: []
       },
       newAttachments: [],
       deletedAttachments: [],
       fileSizeError: '',
+      newLabel: '',
       MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB
       searchQuery: '',
       selectedLabel: '',
       sortOption: 'pinned',
       availableLabels: []
-
     };
+  },
+  computed: {
+    pinnedNotes() {
+      return this.notes.filter(note => note.isPinned);
+    },
+    otherNotes() {
+      return this.notes.filter(note => !note.isPinned);
+    }
   },
   mounted() {
     this.fetchNotes();
+    this.fetchAvailableLabels();
   },
   methods: {
     isImage(contentType) {
@@ -272,29 +412,45 @@ export default {
     async fetchNotes() {
       this.loadingNotes = true;
       try {
-        console.log('Making request to:', '/api/notes');
         const response = await axios.get('/api/notes', {
           params: {
-            q: this.searchQuery || undefined,
-            label: this.selectedLabel || undefined,
-            sort: this.sortOption || 'pinned'
+            q: this.searchQuery,
+            label: this.selectedLabel,
+            sort: this.sortOption
           }
         });
 
-        if (!response.data?.notes) {
-          console.warn('Notes array missing in response, using full response as fallback');
-          this.notes = Array.isArray(response.data) ? response.data : [];
-        } else {
-          this.notes = response.data.notes;
-        }
+        // Handle both array and object responses
+        this.notes = Array.isArray(response.data)
+          ? response.data
+          : response.data.notes || [];
 
-        this.availableLabels = response.data?.availableLabels || [];
       } catch (error) {
-        console.error('API Error:', error);
-        console.error('Error Response:', error.response);
-        this.notes = [];
+        console.error('Error fetching notes:', error);
       } finally {
         this.loadingNotes = false;
+      }
+    },
+    async fetchAvailableLabels() {
+      try {
+        const response = await axios.get('/api/notes/labels');
+        // Filter out empty/null labels and ensure uniqueness
+        this.availableLabels = [...new Set(response.data.filter(label => label && label.trim()))];
+      } catch (error) {
+        console.error('Error fetching labels:', error);
+        this.availableLabels = [];
+      }
+    },
+    addLabel() {
+      const trimmedLabel = this.newLabel.trim();
+      if (trimmedLabel && !this.editingNote.labels.includes(trimmedLabel)) {
+        this.editingNote.labels.push(trimmedLabel);
+        this.newLabel = '';
+
+        // Immediately update availableLabels if this is a new label
+        if (!this.availableLabels.includes(trimmedLabel)) {
+          this.availableLabels = [...this.availableLabels, trimmedLabel].sort();
+        }
       }
     },
     editNote(note) {
@@ -302,11 +458,13 @@ export default {
         _id: note._id,
         title: note.title,
         content: note.content,
-        attachments: [...note.attachments]
+        labels: [...(note.labels || [])],
+        attachments: [...(note.attachments || [])]
       };
       this.newAttachments = [];
       this.deletedAttachments = [];
       this.fileSizeError = '';
+      this.newLabel = '';
       this.showEditModal = true;
     },
     async updateNote() {
@@ -322,19 +480,34 @@ export default {
         }
 
         const formData = new FormData();
+
+        // Append all fields individually
         formData.append('title', this.editingNote.title);
         formData.append('content', this.editingNote.content);
-        formData.append('attachments', JSON.stringify(this.editingNote.attachments));
 
-        // Add new files
-        this.newAttachments.forEach(file => {
-          formData.append('newAttachments', file);
+        // Stringify arrays before appending
+        formData.append('labels', JSON.stringify(this.editingNote.labels || []));
+        formData.append('attachments', JSON.stringify(this.editingNote.attachments || []));
+
+        // Add new files with proper field name
+        this.newAttachments.forEach((file, index) => {
+          formData.append(`newAttachments`, file); // Note: Same field name for all files
         });
 
+        // Debug: Log FormData contents
+        for (let [key, value] of formData.entries()) {
+          console.log(key, value);
+        }
+
         // First update the note with new data
-        await axios.put(`/api/notes/${this.editingNote._id}`, formData, {
+        const response = await axios.put(`/api/notes/${this.editingNote._id}`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
+          },
+          transformRequest: (data, headers) => {
+            // Remove Content-Type header to let browser set it with boundary
+            delete headers['Content-Type'];
+            return data;
           }
         });
 
@@ -349,9 +522,11 @@ export default {
 
         this.showEditModal = false;
         this.fetchNotes();
+        this.fetchAvailableLabels();
       } catch (error) {
         console.error('Error updating note:', error);
-        this.fileSizeError = 'Failed to save changes. Please try again.';
+        console.error('Error details:', error.response?.data);
+        this.fileSizeError = error.response?.data?.error || 'Failed to save changes. Please try again.';
       } finally {
         this.isSaving = false;
       }
@@ -370,20 +545,35 @@ export default {
     removeNewAttachment(index) {
       this.newAttachments.splice(index, 1);
     },
+    addLabel() {
+      if (this.newLabel.trim() && !this.editingNote.labels.includes(this.newLabel.trim())) {
+        this.editingNote.labels.push(this.newLabel.trim());
+        this.newLabel = '';
+      }
+    },
+    removeLabel(index) {
+      this.editingNote.labels.splice(index, 1);
+    },
+    addExistingLabel(label) {
+      if (!this.editingNote.labels.includes(label)) {
+        this.editingNote.labels.push(label);
+      }
+    },
     cancelEdit() {
       if (!this.isSaving) {
         this.showEditModal = false;
       }
     },
     async deleteNote(id) {
-      //if (confirm('Are you sure you want to delete this note?')) {
-      try {
-        await axios.delete(`/api/notes/${id}`);
-        this.fetchNotes();
-      } catch (error) {
-        console.error('Error deleting note:', error);
+      if (confirm('Are you sure you want to delete this note?')) {
+        try {
+          await axios.delete(`/api/notes/${id}`);
+          this.fetchNotes();
+          this.fetchAvailableLabels();
+        } catch (error) {
+          console.error('Error deleting note:', error);
+        }
       }
-      //}
     },
     viewNote(note) {
       this.currentNote = note;
@@ -392,6 +582,7 @@ export default {
     handleNoteCreated() {
       this.showCreateModal = false;
       this.fetchNotes();
+      this.fetchAvailableLabels();
     },
     async togglePin(note) {
       try {
@@ -403,7 +594,6 @@ export default {
         console.error('Error toggling pin:', error);
       }
     },
-
     async toggleFavourite(note) {
       try {
         await axios.patch(`/api/notes/${note._id}`, {
@@ -411,10 +601,9 @@ export default {
         });
         this.fetchNotes();
       } catch (error) {
-        console.error('Error toggling favourite:', error);
+        console.error('Error toggling favorite:', error);
       }
     }
-
   }
 };
 </script>
@@ -445,6 +634,10 @@ export default {
 .card:hover {
   transform: translateY(-5px);
   box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+}
+
+.pinned-highlight {
+  border-left: 4px solid #ffc107;
 }
 
 .img-thumbnail {
@@ -482,5 +675,21 @@ export default {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+.badge {
+  font-size: 0.85em;
+  display: inline-flex;
+  align-items: center;
+}
+
+.label-badge {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.label-badge:hover {
+  opacity: 0.8;
+  transform: translateY(-1px);
 }
 </style>
