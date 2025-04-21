@@ -371,7 +371,6 @@ export default {
       selectedLabel: '',
       sortOption: 'pinned',
       sortOptions: [
-        { value: 'pinned', text: 'Pinned First' },
         { value: 'favourite', text: 'Favorites First' },
         { value: 'recent', text: 'Most Recent' },
         { value: 'title-asc', text: 'Title (A-Z)' },
@@ -390,7 +389,7 @@ export default {
   },
   mounted() {
     this.fetchNotes();
-    this.fetchAvailableLabels();
+    // this.fetchAvailableLabels();
   },
   methods: {
     isImage(contentType) {
@@ -417,11 +416,11 @@ export default {
           }
         });
 
-        // Handle the response format from your backend
+        // Handle both the notes and availableLabels from the response
         this.notes = response.data.notes || [];
         this.availableLabels = response.data.availableLabels || [];
 
-        // Apply client-side sorting for title sorting (as your backend doesn't handle it)
+        // Client-side sorting for title if needed
         if (this.sortOption === 'title-asc') {
           this.notes.sort((a, b) => a.title.localeCompare(b.title));
         } else if (this.sortOption === 'title-desc') {
@@ -434,15 +433,15 @@ export default {
         this.loadingNotes = false;
       }
     },
-    async fetchAvailableLabels() {
-      try {
-        const response = await axios.get('/api/notes/labels');
-        this.availableLabels = response.data || [];
-      } catch (error) {
-        console.error('Error fetching labels:', error);
-        this.availableLabels = [];
-      }
-    },
+    // async fetchAvailableLabels() {
+    //   try {
+    //     const response = await axios.get('/api/notes/labels');
+    //     this.availableLabels = response.data || [];
+    //   } catch (error) {
+    //     console.error('Error fetching labels:', error);
+    //     this.availableLabels = [];
+    //   }
+    // },
 
     addLabel() {
       const trimmedLabel = this.newLabel.trim();
@@ -511,7 +510,7 @@ export default {
 
         this.showEditModal = false;
         this.fetchNotes();
-        this.fetchAvailableLabels();
+        // this.fetchAvailableLabels();
       } catch (error) {
         console.error('Error updating note:', error);
         this.fileSizeError = error.response?.data?.error || 'Failed to save changes. Please try again.';
@@ -551,7 +550,7 @@ export default {
         try {
           await axios.delete(`/api/notes/${id}`);
           this.fetchNotes();
-          this.fetchAvailableLabels();
+          // this.fetchAvailableLabels();
         } catch (error) {
           console.error('Error deleting note:', error);
         }
@@ -564,7 +563,7 @@ export default {
     handleNoteCreated() {
       this.showCreateModal = false;
       this.fetchNotes();
-      this.fetchAvailableLabels();
+      // this.fetchAvailableLabels();
     },
     async togglePin(note) {
       try {

@@ -30,7 +30,7 @@
         <input type="text" class="form-control" id="labels" v-model="labelsInput" placeholder="e.g., work, urgent" />
       </div>
 
-      <div class="form-check form-switch mb-2">
+      <!-- <div class="form-check form-switch mb-2">
         <input class="form-check-input" type="checkbox" id="isPinned" v-model="note.isPinned" />
         <label class="form-check-label" for="isPinned">Pin this note</label>
       </div>
@@ -38,7 +38,7 @@
       <div class="form-check form-switch mb-4">
         <input class="form-check-input" type="checkbox" id="isFavourite" v-model="note.isFavourite" />
         <label class="form-check-label" for="isFavourite">Mark as favourite</label>
-      </div>
+      </div> -->
 
       <button type="submit" class="btn btn-primary">{{ id ? 'Update' : 'Create' }} Note</button>
     </form>
