@@ -30,21 +30,42 @@ const storage = multer.diskStorage({
 });
 
 const upload = multer({
+
 	storage,
 	limits: {
 		fileSize: 5 * 1024 * 1024 // 5MB limit per file
 	},
-	fileFilter: (req, file, cb) => {
-		const filetypes = /jpeg|jpg|png|gif|pdf|doc|docx|txt/;
+
+	allowedMimes : [
+		'image/jpeg',
+		'image/png',
+		'image/gif',
+		'image/webp',
+		'image/svg+xml',
+		'application/pdf',
+		'application/msword', // .doc
+		'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+		'text/plain',
+		'application/vnd.ms-powerpoint', // .ppt
+		'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx ✅
+		'application/vnd.ms-excel', // .xls
+		'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+		'text/markdown' // .md
+	],
+	
+
+	fileFilter : (req, file, cb) => {
+		const filetypes = /jpeg|jpg|png|gif|webp|svg|pdf|doc|docx|txt|ppt|pptx|xls|xlsx|md/;
 		const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-		const mimetype = filetypes.test(file.mimetype);
+		const mimetype = allowedMimes.includes(file.mimetype);
 
 		if (extname && mimetype) {
-			return cb(null, true);
+			cb(null, true);
 		} else {
-			cb('Error: Only images and documents are allowed!');
+			cb(new Error('Only supported file types are allowed'));
 		}
 	}
+
 });
 
 // Update CORS configuration to allow file uploads

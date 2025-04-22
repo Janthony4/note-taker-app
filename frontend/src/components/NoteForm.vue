@@ -12,8 +12,15 @@
       </div>
       <div class="mb-3">
         <label for="attachments" class="form-label">Attachments</label>
-        <input type="file" class="form-control" id="attachments" multiple @change="handleFileUpload" />
+        <input type="file" class="form-control" multiple @change="handleFileUpload" :disabled="isSaving"
+          accept="image/*,.pdf,.docx,.pptx,.xlsx" />
       </div>
+      <div v-if="fileErrors.length" class="alert alert-danger mt-2">
+        <ul class="mb-0">
+          <li v-for="(err, idx) in fileErrors" :key="idx">{{ err }}</li>
+        </ul>
+      </div>
+
       <div v-if="note.attachments && note.attachments.length" class="mb-3">
         <h6>Selected Files:</h6>
         <ul>
@@ -29,17 +36,6 @@
         <label for="labels" class="form-label">Labels (comma-separated)</label>
         <input type="text" class="form-control" id="labels" v-model="labelsInput" placeholder="e.g., work, urgent" />
       </div>
-
-      <!-- <div class="form-check form-switch mb-2">
-        <input class="form-check-input" type="checkbox" id="isPinned" v-model="note.isPinned" />
-        <label class="form-check-label" for="isPinned">Pin this note</label>
-      </div>
-
-      <div class="form-check form-switch mb-4">
-        <input class="form-check-input" type="checkbox" id="isFavourite" v-model="note.isFavourite" />
-        <label class="form-check-label" for="isFavourite">Mark as favourite</label>
-      </div> -->
-
       <button type="submit" class="btn btn-primary">{{ id ? 'Update' : 'Create' }} Note</button>
     </form>
   </div>
@@ -61,23 +57,60 @@ export default {
         labels: []
       },
       labelsInput: '',
-      files: []
+      files: [],
+      fileErrors: []
+
     };
   },
   methods: {
     handleFileUpload(event) {
-      this.files = Array.from(event.target.files);
-      this.note.attachments = this.files.map(file => ({
-        name: file.name,
-        type: file.type,
-        size: file.size
-      }));
+      const allowedTypes = [
+        'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 
+        'application/pdf',                         
+        'application/msword',                      
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 
+        'text/markdown',                           
+        'application/vnd.ms-powerpoint',           
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation', 
+        'application/vnd.ms-excel',                
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 
+        'text/plain'                          
+      ];
+      const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+      this.files = [];
+      this.note.attachments = [];
+      this.fileErrors = [];
+
+      const selectedFiles = Array.from(event.target.files);
+
+      selectedFiles.forEach(file => {
+        if (!allowedTypes.includes(file.type)) {
+          this.fileErrors.push(`${file.name} is not an allowed file type.`);
+          return;
+        }
+        if (file.size > MAX_FILE_SIZE) {
+          this.fileErrors.push(`${file.name} exceeds the 5MB size limit.`);
+          return;
+        }
+        this.files.push(file);
+        this.note.attachments.push({
+          name: file.name,
+          type: file.type,
+          size: file.size
+        });
+      });
     },
+
     removeFile(index) {
       this.files.splice(index, 1);
       this.note.attachments.splice(index, 1);
     },
     async submitForm() {
+      if (this.fileErrors.length) {
+        alert('Please fix the file upload errors before submitting.');
+        return;
+      }
+
       try {
         const formData = new FormData();
 

@@ -140,7 +140,9 @@
 
               <div class="mb-3">
                 <label class="form-label">Add New Attachments (max 5MB each)</label>
-                <input type="file" class="form-control" multiple @change="handleFileUpload" :disabled="isSaving">
+                <input type="file" class="form-control" multiple @change="handleFileUpload" :disabled="isSaving"
+                  accept="image/*,.pdf,.docx,.pptx,.xlsx">
+
                 <div v-if="newAttachments.length" class="mt-2">
                   <div v-for="(file, index) in newAttachments" :key="'new-' + index" class="d-inline-block me-2">
                     <span class="badge bg-secondary">
@@ -376,7 +378,7 @@ export default {
         { value: 'title-asc', text: 'Title (A-Z)' },
         { value: 'title-desc', text: 'Title (Z-A)' }
       ],
-      availableLabels: []
+      availableLabels: [],
     };
   },
   computed: {
@@ -389,7 +391,6 @@ export default {
   },
   mounted() {
     this.fetchNotes();
-    // this.fetchAvailableLabels();
   },
   methods: {
     isImage(contentType) {
@@ -433,16 +434,6 @@ export default {
         this.loadingNotes = false;
       }
     },
-    // async fetchAvailableLabels() {
-    //   try {
-    //     const response = await axios.get('/api/notes/labels');
-    //     this.availableLabels = response.data || [];
-    //   } catch (error) {
-    //     console.error('Error fetching labels:', error);
-    //     this.availableLabels = [];
-    //   }
-    // },
-
     addLabel() {
       const trimmedLabel = this.newLabel.trim();
       if (trimmedLabel && !this.editingNote.labels.includes(trimmedLabel)) {
@@ -510,7 +501,6 @@ export default {
 
         this.showEditModal = false;
         this.fetchNotes();
-        // this.fetchAvailableLabels();
       } catch (error) {
         console.error('Error updating note:', error);
         this.fileSizeError = error.response?.data?.error || 'Failed to save changes. Please try again.';
@@ -519,8 +509,36 @@ export default {
       }
     },
     handleFileUpload(event) {
+      const allowedTypes = [
+        'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml',
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'application/vnd.ms-excel',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'application/vnd.ms-powerpoint',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'text/plain',
+        'text/markdown'
+      ];
+
+      const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+
       const files = Array.from(event.target.files);
-      this.newAttachments = [...this.newAttachments, ...files];
+      const validFiles = [];
+      this.fileErrors = [];
+
+      files.forEach(file => {
+        if (!allowedTypes.includes(file.type)) {
+          this.fileErrors.push(`${file.name} is not an allowed file type.`);
+        } else if (file.size > MAX_FILE_SIZE) {
+          this.fileErrors.push(`${file.name} exceeds the 20MB size limit.`);
+        } else {
+          validFiles.push(file);
+        }
+      });
+
+      this.newAttachments = [...this.newAttachments, ...validFiles];
       event.target.value = ''; // Reset file input
     },
     removeAttachment(index) {
@@ -546,15 +564,13 @@ export default {
       }
     },
     async deleteNote(id) {
-      // if (confirm('Are you sure you want to delete this note?')) {
-        try {
-          await axios.delete(`/api/notes/${id}`);
-          this.fetchNotes();
-          // this.fetchAvailableLabels();
-        } catch (error) {
-          console.error('Error deleting note:', error);
-        }
-      // }
+      try {
+        await axios.delete(`/api/notes/${id}`);
+        this.fetchNotes();
+      } catch (error) {
+        console.error('Error deleting note:', error);
+      }
+
     },
     viewNote(note) {
       this.currentNote = note;
@@ -563,7 +579,6 @@ export default {
     handleNoteCreated() {
       this.showCreateModal = false;
       this.fetchNotes();
-      // this.fetchAvailableLabels();
     },
     async togglePin(note) {
       try {
