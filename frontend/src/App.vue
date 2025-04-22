@@ -397,7 +397,9 @@ export default {
       return contentType && contentType.startsWith('image/');
     },
     getAttachmentUrl(filename) {
-      return `${import.meta.env.VITE_API_BASE_URL || ''}/uploads/${filename}`;
+      const cleanFilename = filename.replace(/^\//, '');
+      return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
+        }/uploads/${cleanFilename}`;
     },
     formatFileSize(bytes) {
       if (bytes === 0) return '0 Bytes';

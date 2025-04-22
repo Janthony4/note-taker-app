@@ -2,7 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import type { RouteRecordRaw } from 'vue-router';
 import HomeView from '../views/HomeView.vue';
 import NoteDetail from '../components/NoteDetail.vue';
-import NoteForm from '../components/NoteForm.vue'; // This will be reused for both creating and editing
+import NoteForm from '../components/NoteForm.vue';
 
 const routes: Array<RouteRecordRaw> = [
   {

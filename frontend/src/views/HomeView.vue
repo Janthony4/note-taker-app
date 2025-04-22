@@ -1,8 +1,5 @@
 <template>
-  <div>
-    <router-link to="/create">Create Note</router-link>
-    <NoteList />
-  </div>
+  
 </template>
 
 <script lang="ts">

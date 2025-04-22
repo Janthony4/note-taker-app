@@ -29,44 +29,45 @@ const storage = multer.diskStorage({
 	}
 });
 
+const allowedMimes = [
+	'image/jpeg',
+	'image/png',
+	'image/gif',
+	'image/webp',
+	'image/svg+xml',
+	'application/pdf',
+	'application/msword',
+	'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+	'text/plain',
+	'application/vnd.ms-powerpoint',
+	'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+	'application/vnd.ms-excel',
+	'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+	'text/markdown'
+  ];
+
 const upload = multer({
-
-	storage,
+	storage: multer.diskStorage({
+	  destination: (req, file, cb) => {
+		const uploadDir = path.join(__dirname, 'uploads'); // Use absolute path
+		fs.mkdirSync(uploadDir, { recursive: true }); // Ensure directory exists
+		cb(null, uploadDir);
+	  },
+	  filename: (req, file, cb) => {
+		cb(null, Date.now() + '-' + file.originalname); // Better filename format
+	  }
+	}),
 	limits: {
-		fileSize: 5 * 1024 * 1024 // 5MB limit per file
+	  fileSize: 5 * 1024 * 1024 // 5MB limit
 	},
-
-	allowedMimes : [
-		'image/jpeg',
-		'image/png',
-		'image/gif',
-		'image/webp',
-		'image/svg+xml',
-		'application/pdf',
-		'application/msword', // .doc
-		'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-		'text/plain',
-		'application/vnd.ms-powerpoint', // .ppt
-		'application/vnd.openxmlformats-officedocument.presentationml.presentation', // .pptx ✅
-		'application/vnd.ms-excel', // .xls
-		'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
-		'text/markdown' // .md
-	],
-	
-
-	fileFilter : (req, file, cb) => {
-		const filetypes = /jpeg|jpg|png|gif|webp|svg|pdf|doc|docx|txt|ppt|pptx|xls|xlsx|md/;
-		const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-		const mimetype = allowedMimes.includes(file.mimetype);
-
-		if (extname && mimetype) {
-			cb(null, true);
-		} else {
-			cb(new Error('Only supported file types are allowed'));
-		}
+	fileFilter: (req, file, cb) => {
+	  if (allowedMimes.includes(file.mimetype)) {
+		cb(null, true);
+	  } else {
+		cb(new Error('Invalid file type'));
+	  }
 	}
-
-});
+  });
 
 // Update CORS configuration to allow file uploads
 app.use(cors({
