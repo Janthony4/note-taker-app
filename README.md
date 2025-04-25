@@ -20,6 +20,9 @@ cd frontend
 npm install vite @vitejs/plugin-vue typescript @vue/compiler-sfc --save-dev
 npm install @tsconfig/node22
 cd ..
+cd backend
+npm install express-session
+cd ..
 
 docker-compose up -d --build
 
