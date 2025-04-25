@@ -3,6 +3,7 @@ import type { RouteRecordRaw } from 'vue-router';
 import HomeView from '../views/HomeView.vue';
 import NoteDetail from '../components/NoteDetail.vue';
 import NoteForm from '../components/NoteForm.vue';
+import LoginForm from '../components/LoginForm.vue';
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -26,6 +27,11 @@ const routes: Array<RouteRecordRaw> = [
     name: 'EditNote',
     component: NoteForm,
     props: true  // Pass the 'id' as a prop to the NoteForm component
+  },
+  {
+    path: '/login',
+    name: 'Login',
+    component: LoginForm
   }
 ];
 

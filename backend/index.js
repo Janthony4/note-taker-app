@@ -14,6 +14,21 @@ const port = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+// Add session middleware (at top of file)
+const session = require('express-session');
+app.use(session({
+  secret: 'your-secret-key',
+  resave: false,
+  saveUninitialized: true
+}));
+
+function requireAuth(req, res, next) {
+	if (!req.session.userId) {
+	  return res.status(401).json({ error: 'Not authenticated' });
+	}
+	next();
+}
+
 // Configure multer storage
 const storage = multer.diskStorage({
 	destination: (req, file, cb) => {
@@ -88,7 +103,7 @@ mongoose.connect(process.env.MONGO_URI)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
-app.post('/api/notes', upload.array('attachments'), async (req, res) => {
+app.post('/api/notes', requireAuth, upload.array('attachments'), async (req, res) => {
 	try {
 		const { title, content } = req.body;
 		const attachments = req.files?.map(file => ({
@@ -102,7 +117,8 @@ app.post('/api/notes', upload.array('attachments'), async (req, res) => {
 		const note = new Note({
 			title,
 			content,
-			attachments
+			attachments,
+			user: req.session.userId, // Associate note with user
 		});
 
 		await note.save();
@@ -114,11 +130,11 @@ app.post('/api/notes', upload.array('attachments'), async (req, res) => {
 });
 
 // In your backend (index.js or routes file)
-app.get('/api/notes', async (req, res) => {
+app.get('/api/notes', requireAuth, async (req, res) => {
 	try {
 		const { q, label, sort } = req.query;
-
-		let query = {};
+		let query = { user: req.session.userId };
+		
 		if (q) {
 			query.$or = [
 				{ title: { $regex: q, $options: 'i' } },
@@ -150,7 +166,7 @@ app.get('/api/notes', async (req, res) => {
 	}
 });
 
-app.patch('/api/notes/:id', async (req, res) => {
+app.patch('/api/notes/:id', requireAuth, async (req, res) => {
 	try {
 		const { isPinned, isFavourite } = req.body;
 
@@ -172,7 +188,7 @@ app.patch('/api/notes/:id', async (req, res) => {
 });
 
 
-app.get('/api/notes/:id', async (req, res) => {
+app.get('/api/notes/:id', requireAuth, async (req, res) => {
 	try {
 		const note = await Note.findById(req.params.id);
 		if (!note) return res.status(404).send('Note not found');
@@ -182,7 +198,7 @@ app.get('/api/notes/:id', async (req, res) => {
 	}
 });
 
-app.delete('/api/notes/:id', async (req, res) => {
+app.delete('/api/notes/:id', requireAuth, async (req, res) => {
 	try {
 		const note = await Note.findById(req.params.id);
 		if (!note) return res.status(404).send();
@@ -204,7 +220,7 @@ app.delete('/api/notes/:id', async (req, res) => {
 });
 
 // In your index.js
-app.put('/api/notes/:id', upload.array('newAttachments'), async (req, res) => {
+app.put('/api/notes/:id', requireAuth, upload.array('newAttachments'), async (req, res) => {
 	try {
 		const { id } = req.params;
 		const { title, content } = req.body;
@@ -241,7 +257,7 @@ app.put('/api/notes/:id', upload.array('newAttachments'), async (req, res) => {
 	}
 });
 
-app.delete('/api/notes/:id/attachments/:filename', async (req, res) => {
+app.delete('/api/notes/:id/attachments/:filename', requireAuth, async (req, res) => {
 	try {
 		const { id, filename } = req.params;
 
@@ -264,7 +280,7 @@ app.delete('/api/notes/:id/attachments/:filename', async (req, res) => {
 		res.status(500).json({ error: 'Failed to delete attachment' });
 	}
 });
-app.get('/api/notes/labels', async (req, res) => {
+app.get('/api/notes/labels', requireAuth, async (req, res) => {
 	try {
 		// Use distinct to get all unique labels
 		const labels = await Note.distinct('labels');
@@ -277,6 +293,55 @@ app.get('/api/notes/labels', async (req, res) => {
 		res.status(500).json({ error: error.message });
 	}
 });
+
+const User = require('./models/User');
+
+// Register
+app.post('/api/register', async (req, res) => {
+	try {
+	  const { username, password } = req.body;
+	  
+	  // Check if user already exists
+	  const existingUser = await User.findOne({ username });
+	  if (existingUser) {
+		return res.status(400).json({ error: 'Username already exists' });
+	  }
+  
+	  // Create new user
+	  const user = new User({ username, password });
+	  await user.save();
+  
+	  // Set session
+	  req.session.userId = user._id;
+	  res.json({ userId: user._id });
+	} catch (error) {
+	  res.status(400).json({ error: error.message });
+	}
+  });
+  
+  app.post('/api/login', async (req, res) => {
+	try {
+	  const { username, password } = req.body;
+	  
+	  // Find user and check password
+	  const user = await User.findOne({ username });
+	  if (!user || user.password !== password) {
+		return res.status(401).json({ error: 'Invalid username or password' });
+	  }
+  
+	  // Set session
+	  req.session.userId = user._id;
+	  res.json({ userId: user._id });
+	} catch (error) {
+	  res.status(400).json({ error: error.message });
+	}
+  });
+  
+  app.post('/api/logout', (req, res) => {
+	req.session.destroy();
+	res.json({ message: 'Logged out successfully' });
+  });
+
 app.listen(port, () => {
 	console.log(`Backend running on port ${port}`);
 });
