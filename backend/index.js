@@ -246,6 +246,19 @@ app.put('/api/notes/:id', requireAuth, upload.array('newAttachments'), async (re
         // Parse the JSON strings from form data
         const labels = req.body.labels ? JSON.parse(req.body.labels) : [];
         const existingAttachments = req.body.attachments ? JSON.parse(req.body.attachments) : [];
+        const deletedAttachments = req.body.deletedAttachments ? JSON.parse(req.body.deletedAttachments) : [];
+
+        // Delete files from GridFS
+        if (deletedAttachments.length > 0) {
+            await Promise.all(deletedAttachments.map(async (fileId) => {
+                try {
+                    await bucket.delete(new mongoose.Types.ObjectId(fileId));
+                } catch (err) {
+                    console.error(`Failed to delete file ${fileId}:`, err);
+                    // Continue with other deletions even if one fails
+                }
+            }));
+        }
 
         // Process new attachments with GridFS
         const newAttachmentPromises = req.files?.map(async file => {

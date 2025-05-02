@@ -540,27 +540,19 @@ export default {
         formData.append('content', this.editingNote.content);
         formData.append('labels', JSON.stringify(this.editingNote.labels || []));
         formData.append('attachments', JSON.stringify(this.editingNote.attachments || []));
+        formData.append('deletedAttachments', JSON.stringify(this.deletedAttachments || []));
 
         // Add new files
         this.newAttachments.forEach(file => {
           formData.append('newAttachments', file);
         });
 
-        // First update the note with new data
+        // Update the note with new data
         await axios.put(`/api/notes/${this.editingNote._id}`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
           }
         });
-
-        // Then delete any removed attachments
-        if (this.deletedAttachments.length) {
-          await Promise.all(
-            this.deletedAttachments.map(filename =>
-              axios.delete(`/api/notes/${this.editingNote._id}/attachments/${filename}`)
-            )
-          );
-        }
 
         this.showEditModal = false;
         this.fetchNotes();
@@ -605,8 +597,11 @@ export default {
       event.target.value = ''; // Reset file input
     },
     removeAttachment(index) {
-      // Add to deleted attachments list
-      this.deletedAttachments.push(this.editingNote.attachments[index].filename);
+      // Store the fileId instead of filename
+      const attachment = this.editingNote.attachments[index];
+      if (attachment.fileId) {
+        this.deletedAttachments.push(attachment.fileId);
+      }
       // Remove from display
       this.editingNote.attachments.splice(index, 1);
     },
