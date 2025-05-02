@@ -59,7 +59,6 @@ export default {
       labelsInput: '',
       files: [],
       fileErrors: []
-
     };
   },
   methods: {
@@ -96,7 +95,8 @@ export default {
         this.note.attachments.push({
           name: file.name,
           type: file.type,
-          size: file.size
+          size: file.size,
+          contentType: file.type // Add this line
         });
       });
     },
@@ -105,6 +105,22 @@ export default {
       this.files.splice(index, 1);
       this.note.attachments.splice(index, 1);
     },
+
+    resetForm() {
+      // Reset all form fields to their initial state
+      this.note = {
+        title: '',
+        content: '',
+        attachments: [],
+        isPinned: false,
+        isFavourite: false,
+        labels: []
+      };
+      this.labelsInput = '';
+      this.files = [];
+      this.fileErrors = [];
+    },
+
     async submitForm() {
       if (this.fileErrors.length) {
         alert('Please fix the file upload errors before submitting.');
@@ -114,23 +130,25 @@ export default {
       try {
         const formData = new FormData();
 
-        this.note.labels = this.labelsInput
-          .split(',')
-          .map(label => label.trim())
-          .filter(label => label.length > 0);
-
+        // Add basic note data
         formData.append('title', this.note.title);
         formData.append('content', this.note.content);
         formData.append('isPinned', this.note.isPinned);
         formData.append('isFavourite', this.note.isFavourite);
-        formData.append('labels', JSON.stringify(this.note.labels));
+
+        // Handle labels
+        const labels = this.labelsInput
+          .split(',')
+          .map(label => label.trim())
+          .filter(label => label.length > 0);
+        formData.append('labels', JSON.stringify(labels));
 
         // Append each file individually
         this.files.forEach(file => {
           formData.append('attachments', file);
         });
 
-        const response = await axios.post('/api/notes', formData, {
+        await axios.post('/api/notes', formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
           },
@@ -138,13 +156,10 @@ export default {
         });
 
         this.$emit('note-created');
-        this.$router.push('/');
+        this.resetForm();
       } catch (error) {
-        console.error('Error submitting note:', error);
-        if (error.response) {
-          console.error('Response data:', error.response.data);
-          console.error('Response status:', error.response.status);
-        }
+        console.error('Error creating note:', error);
+        this.errors = error.response?.data?.error || 'Failed to create note';
       }
     }
   }

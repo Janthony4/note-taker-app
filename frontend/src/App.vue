@@ -70,11 +70,12 @@
                   <h6>Attachments:</h6>
                   <div class="row">
                     <div class="col-md-4 mb-3" v-for="(attachment, index) in currentNote.attachments" :key="index">
-                      <img v-if="isImage(attachment.contentType)" :src="getAttachmentUrl(attachment.filename)"
+                      <img v-if="isImage(attachment.contentType)" :src="getAttachmentUrl(attachment.fileId)"
                         class="img-fluid rounded" style="max-height: 200px; object-fit: contain;"
-                        :alt="attachment.originalname" />
+                        :alt="attachment.originalname" @error="handleImageError" />
                       <div v-else class="border p-2 rounded">
-                        <a :href="getAttachmentUrl(attachment.filename)" download class="text-decoration-none">
+                        <a :href="getAttachmentUrl(attachment.fileId)" :download="attachment.originalname"
+                          class="text-decoration-none">
                           <i class="bi bi-file-earmark-arrow-down me-2"></i>
                           {{ attachment.originalname }}
                         </a>
@@ -147,7 +148,7 @@
                     <div class="d-flex flex-wrap gap-2 mb-3">
                       <div v-for="(attachment, index) in editingNote.attachments" :key="index"
                         class="position-relative">
-                        <img v-if="isImage(attachment.contentType)" :src="getAttachmentUrl(attachment.filename)"
+                        <img v-if="isImage(attachment.contentType)" :src="getAttachmentUrl(attachment.fileId)"
                           class="img-thumbnail" style="height: 100px; object-fit: cover;"
                           :alt="attachment.originalname" />
                         <div v-else class="border p-2 rounded">
@@ -244,21 +245,21 @@
                     <div v-if="note.attachments && note.attachments.length"
                       class="mt-3 d-flex align-items-center gap-2 flex-wrap">
                       <div v-for="(attachment, index) in note.attachments.slice(0, 3)" :key="index">
-                        <img v-if="isImage(attachment.contentType)" :src="getAttachmentUrl(attachment.filename)"
+                        <img v-if="isImage(attachment.contentType)" :src="getAttachmentUrl(attachment.fileId)"
                           class="img-thumbnail" style="max-height: 100px; max-width: 100px; object-fit: contain;"
-                          :alt="attachment.originalname" />
+                          :alt="attachment.originalname" @error="handleImageError" />
                         <div v-else class="border p-2 rounded text-center" style="width: 100px; height: 100px;">
                           <i class="bi bi-file-earmark" style="font-size: 2rem;"></i>
                           <div style="font-size: 0.8rem;">{{ attachment.originalname }}</div>
                         </div>
                       </div>
+                    </div>
 
-                      <!-- "+N more" counter -->
-                      <div v-if="note.attachments.length > 3"
-                        class="d-flex justify-content-center align-items-center bg-secondary text-white rounded"
-                        style="width: 50px; height: 50px; font-weight: bold;">
-                        +{{ note.attachments.length - 3 }}
-                      </div>
+                    <!-- "+N more" counter -->
+                    <div v-if="note.attachments.length > 3"
+                      class="d-flex justify-content-center align-items-center bg-secondary text-white rounded"
+                      style="width: 50px; height: 50px; font-weight: bold;">
+                      +{{ note.attachments.length - 3 }}
                     </div>
 
                     <!-- Action Buttons -->
@@ -309,21 +310,21 @@
                     <div v-if="note.attachments && note.attachments.length"
                       class="mt-3 d-flex align-items-center gap-2 flex-wrap">
                       <div v-for="(attachment, index) in note.attachments.slice(0, 3)" :key="index">
-                        <img v-if="isImage(attachment.contentType)" :src="getAttachmentUrl(attachment.filename)"
+                        <img v-if="isImage(attachment.contentType)" :src="getAttachmentUrl(attachment.fileId)"
                           class="img-thumbnail" style="max-height: 100px; max-width: 100px; object-fit: contain;"
-                          :alt="attachment.originalname" />
+                          :alt="attachment.originalname" @error="handleImageError" />
                         <div v-else class="border p-2 rounded text-center" style="width: 100px; height: 100px;">
                           <i class="bi bi-file-earmark" style="font-size: 2rem;"></i>
                           <div style="font-size: 0.8rem;">{{ attachment.originalname }}</div>
                         </div>
                       </div>
+                    </div>
 
-                      <!-- "+N more" counter -->
-                      <div v-if="note.attachments.length > 3"
-                        class="d-flex justify-content-center align-items-center bg-secondary text-white rounded"
-                        style="width: 50px; height: 50px; font-weight: bold;">
-                        +{{ note.attachments.length - 3 }}
-                      </div>
+                    <!-- "+N more" counter -->
+                    <div v-if="note.attachments.length > 3"
+                      class="d-flex justify-content-center align-items-center bg-secondary text-white rounded"
+                      style="width: 50px; height: 50px; font-weight: bold;">
+                      +{{ note.attachments.length - 3 }}
                     </div>
 
                     <!-- Action Buttons -->
@@ -447,12 +448,19 @@ export default {
       }
     },
     isImage(contentType) {
-      return contentType && contentType.startsWith('image/');
+      const imageTypes = [
+        'image/jpeg',
+        'image/png',
+        'image/gif',
+        'image/webp',
+        'image/svg+xml'
+      ];
+      return imageTypes.includes(contentType);
     },
-    getAttachmentUrl(filename) {
-      const cleanFilename = filename.replace(/^\//, '');
-      return `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000'
-        }/uploads/${cleanFilename}`;
+    getAttachmentUrl(fileId) {
+      if (!fileId) return '';
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+      return `${baseUrl}/api/files/${fileId}`;
     },
     formatFileSize(bytes) {
       if (bytes === 0) return '0 Bytes';
@@ -654,6 +662,9 @@ export default {
       } catch (error) {
         console.error('Error toggling favorite:', error);
       }
+    },
+    handleImageError(event) {
+      console.error('Image failed to load:', event.target.src);
     }
   }
 };

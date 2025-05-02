@@ -5,6 +5,8 @@ const dotenv = require('dotenv');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { GridFSBucket } = require('mongodb');
+const { Readable } = require('stream');
 
 dotenv.config();
 
@@ -29,21 +31,6 @@ function requireAuth(req, res, next) {
 	next();
 }
 
-// Configure multer storage
-const storage = multer.diskStorage({
-	destination: (req, file, cb) => {
-		const uploadDir = 'uploads/';
-		// Create uploads directory if it doesn't exist
-		if (!fs.existsSync(uploadDir)) {
-			fs.mkdirSync(uploadDir);
-		}
-		cb(null, uploadDir);
-	},
-	filename: (req, file, cb) => {
-		cb(null, Date.now() + path.extname(file.originalname));
-	}
-});
-
 const allowedMimes = [
 	'image/jpeg',
 	'image/png',
@@ -59,30 +46,22 @@ const allowedMimes = [
 	'application/vnd.ms-excel',
 	'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 	'text/markdown'
-  ];
+];
 
+// Remove multer disk storage configuration and use memory storage instead
 const upload = multer({
-	storage: multer.diskStorage({
-	  destination: (req, file, cb) => {
-		const uploadDir = path.join(__dirname, 'uploads'); // Use absolute path
-		fs.mkdirSync(uploadDir, { recursive: true }); // Ensure directory exists
-		cb(null, uploadDir);
-	  },
-	  filename: (req, file, cb) => {
-		cb(null, Date.now() + '-' + file.originalname); // Better filename format
-	  }
-	}),
-	limits: {
-	  fileSize: 5 * 1024 * 1024 // 5MB limit
-	},
-	fileFilter: (req, file, cb) => {
-	  if (allowedMimes.includes(file.mimetype)) {
-		cb(null, true);
-	  } else {
-		cb(new Error('Invalid file type'));
-	  }
-	}
-  });
+    storage: multer.memoryStorage(),
+    limits: {
+        fileSize: 5 * 1024 * 1024 // 5MB limit
+    },
+    fileFilter: (req, file, cb) => {
+        if (allowedMimes.includes(file.mimetype)) {
+            cb(null, true);
+        } else {
+            cb(new Error('Invalid file type'));
+        }
+    }
+});
 
 // Update CORS configuration to allow file uploads
 app.use(cors({
@@ -99,34 +78,73 @@ mongoose.connect(process.env.MONGO_URI)
 	.then(() => console.log('Connected to MongoDB'))
 	.catch(err => console.error('MongoDB connection error:', err));
 
-// Serve uploaded files statically
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Routes
 app.post('/api/notes', requireAuth, upload.array('attachments'), async (req, res) => {
-	try {
-		const { title, content } = req.body;
-		const attachments = req.files?.map(file => ({
-			filename: file.filename,
-			originalname: file.originalname,
-			path: file.path,
-			contentType: file.mimetype,
-			size: file.size
-		})) || [];
+    try {
+        const { title, content } = req.body;
+        const bucket = new GridFSBucket(mongoose.connection.db);
+        
+        // Upload files to GridFS
+        const attachmentPromises = req.files?.map(async file => {
+            const uploadStream = bucket.openUploadStream(file.originalname);
+            const readStream = Readable.from(file.buffer);
+            await new Promise((resolve, reject) => {
+                readStream.pipe(uploadStream)
+                    .on('finish', resolve)
+                    .on('error', reject);
+            });
 
-		const note = new Note({
-			title,
-			content,
-			attachments,
-			user: req.session.userId, // Associate note with user
-		});
+            return {
+                fileId: uploadStream.id,
+                filename: uploadStream.filename,
+                originalname: file.originalname,
+                contentType: file.mimetype,
+                size: file.size
+            };
+        }) || [];
 
-		await note.save();
-		res.status(201).json(note);
-	} catch (error) {
-		console.error('Error creating note:', error);
-		res.status(400).json({ error: error.message });
-	}
+        const attachments = await Promise.all(attachmentPromises);
+
+        const note = new Note({
+            title,
+            content,
+            attachments,
+            user: req.session.userId,
+        });
+
+        await note.save();
+        res.status(201).json(note);
+    } catch (error) {
+        console.error('Error creating note:', error);
+        res.status(400).json({ error: error.message });
+    }
+});
+
+// Add route to serve files
+app.get('/api/files/:fileId', requireAuth, async (req, res) => {
+    try {
+        const bucket = new GridFSBucket(mongoose.connection.db);
+        const file = await bucket.find({ _id: new mongoose.Types.ObjectId(req.params.fileId) }).next();
+        
+        if (!file) {
+            return res.status(404).json({ error: 'File not found' });
+        }
+
+        // Set the correct content type
+        res.set('Content-Type', file.contentType);
+        
+        const downloadStream = bucket.openDownloadStream(new mongoose.Types.ObjectId(req.params.fileId));
+        
+        downloadStream.on('error', () => {
+            res.status(404).json({ error: 'File not found' });
+        });
+
+        downloadStream.pipe(res);
+    } catch (error) {
+        console.error('Error retrieving file:', error);
+        res.status(500).json({ error: 'Error retrieving file' });
+    }
 });
 
 // In your backend (index.js or routes file)
@@ -199,87 +217,100 @@ app.get('/api/notes/:id', requireAuth, async (req, res) => {
 });
 
 app.delete('/api/notes/:id', requireAuth, async (req, res) => {
-	try {
-		const note = await Note.findById(req.params.id);
-		if (!note) return res.status(404).send();
+    try {
+        const note = await Note.findById(req.params.id);
+        if (!note) return res.status(404).send();
 
-		// Delete associated files
-		if (note.attachments && note.attachments.length) {
-			note.attachments.forEach(attachment => {
-				if (fs.existsSync(attachment.path)) {
-					fs.unlinkSync(attachment.path);
-				}
-			});
-		}
+        // Delete associated files from GridFS
+        if (note.attachments && note.attachments.length) {
+            const bucket = new GridFSBucket(mongoose.connection.db);
+            await Promise.all(note.attachments.map(attachment => 
+                bucket.delete(new mongoose.Types.ObjectId(attachment.fileId))
+            ));
+        }
 
-		await Note.findByIdAndDelete(req.params.id);
-		res.send(note);
-	} catch (error) {
-		res.status(500).send(error);
-	}
+        await Note.findByIdAndDelete(req.params.id);
+        res.send(note);
+    } catch (error) {
+        console.error('Error deleting note:', error);
+        res.status(500).send(error);
+    }
 });
 
-// In your index.js
 app.put('/api/notes/:id', requireAuth, upload.array('newAttachments'), async (req, res) => {
-	try {
-		const { id } = req.params;
-		const { title, content } = req.body;
+    try {
+        const { id } = req.params;
+        const { title, content } = req.body;
+        const bucket = new GridFSBucket(mongoose.connection.db);
 
-		// Parse the JSON strings from form data
-		const labels = req.body.labels ? JSON.parse(req.body.labels) : [];
-		const attachments = req.body.attachments ? JSON.parse(req.body.attachments) : [];
+        // Parse the JSON strings from form data
+        const labels = req.body.labels ? JSON.parse(req.body.labels) : [];
+        const existingAttachments = req.body.attachments ? JSON.parse(req.body.attachments) : [];
 
-		// Process new attachments
-		const newAttachments = req.files?.map(file => ({
-			filename: file.filename,
-			originalname: file.originalname,
-			path: file.path,
-			contentType: file.mimetype,
-			size: file.size
-		})) || [];
+        // Process new attachments with GridFS
+        const newAttachmentPromises = req.files?.map(async file => {
+            const uploadStream = bucket.openUploadStream(file.originalname);
+            const readStream = Readable.from(file.buffer);
+            
+            await new Promise((resolve, reject) => {
+                readStream.pipe(uploadStream)
+                    .on('finish', resolve)
+                    .on('error', reject);
+            });
 
-		// Combine all data
-		const updateData = {
-			title,
-			content,
-			labels,
-			attachments: [...attachments, ...newAttachments]
-		};
+            return {
+                fileId: uploadStream.id,
+                filename: uploadStream.filename,
+                originalname: file.originalname,
+                contentType: file.mimetype,
+                size: file.size
+            };
+        }) || [];
 
-		const note = await Note.findByIdAndUpdate(id, updateData, { new: true });
-		res.json(note);
-	} catch (error) {
-		console.error('Error updating note:', error);
-		res.status(500).json({
-			error: 'Failed to update note',
-			details: error.message
-		});
-	}
+        const newAttachments = await Promise.all(newAttachmentPromises);
+
+        // Combine all data
+        const updateData = {
+            title,
+            content,
+            labels,
+            attachments: [...existingAttachments, ...newAttachments]
+        };
+
+        const note = await Note.findByIdAndUpdate(id, updateData, { new: true });
+        res.json(note);
+    } catch (error) {
+        console.error('Error updating note:', error);
+        res.status(500).json({
+            error: 'Failed to update note',
+            details: error.message
+        });
+    }
 });
 
-app.delete('/api/notes/:id/attachments/:filename', requireAuth, async (req, res) => {
-	try {
-		const { id, filename } = req.params;
+// Update delete attachment endpoint
+app.delete('/api/notes/:id/attachments/:fileId', requireAuth, async (req, res) => {
+    try {
+        const { id, fileId } = req.params;
+        const bucket = new GridFSBucket(mongoose.connection.db);
 
-		// Remove file from filesystem
-		const filePath = path.join(__dirname, 'uploads', filename);
-		if (fs.existsSync(filePath)) {
-			fs.unlinkSync(filePath);
-		}
+        // Delete file from GridFS
+        await bucket.delete(new mongoose.Types.ObjectId(fileId));
 
-		// Remove from note's attachments
-		await Note.findByIdAndUpdate(
-			id,
-			{ $pull: { attachments: { filename } } },
-			{ new: true }
-		);
+        // Remove from note's attachments
+        await Note.findByIdAndUpdate(
+            id,
+            { $pull: { attachments: { fileId: new mongoose.Types.ObjectId(fileId) } } },
+            { new: true }
+        );
 
-		res.json({ success: true });
-	} catch (error) {
-		console.error('Error deleting attachment:', error);
-		res.status(500).json({ error: 'Failed to delete attachment' });
-	}
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error deleting attachment:', error);
+        res.status(500).json({ error: 'Failed to delete attachment' });
+    }
 });
+
 app.get('/api/notes/labels', requireAuth, async (req, res) => {
 	try {
 		// Use distinct to get all unique labels
