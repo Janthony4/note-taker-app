@@ -70,15 +70,24 @@
                   <h6>Attachments:</h6>
                   <div class="row">
                     <div class="col-md-4 mb-3" v-for="(attachment, index) in currentNote.attachments" :key="index">
-                      <img v-if="isImage(attachment.contentType)" :src="getAttachmentUrl(attachment.fileId)"
-                        class="img-fluid rounded" style="max-height: 200px; object-fit: contain;"
-                        :alt="attachment.originalname" @error="handleImageError" />
-                      <div v-else class="border p-2 rounded">
-                        <a :href="getAttachmentUrl(attachment.fileId)" :download="attachment.originalname"
-                          class="text-decoration-none">
-                          <i class="bi bi-file-earmark-arrow-down me-2"></i>
-                          {{ attachment.originalname }}
-                        </a>
+                      <!-- For images -->
+                      <div v-if="isImage(attachment.contentType)" 
+                           class="cursor-pointer"
+                           style="max-height: 200px; overflow: hidden;"
+                           @click="downloadAttachment(attachment)">
+                        <img :src="getAttachmentUrl(attachment.fileId)"
+                             class="img-fluid rounded w-100" 
+                             style="object-fit: contain;"
+                             :alt="attachment.originalname" 
+                             @error="handleImageError" />
+                      </div>
+                      <!-- For other files -->
+                      <div v-else 
+                           class="border p-2 rounded cursor-pointer d-flex align-items-center"
+                           @click="downloadAttachment(attachment)"
+                           style="min-height: 50px;">
+                        <i class="bi bi-file-earmark-arrow-down me-2"></i>
+                        <span class="text-truncate">{{ attachment.originalname }}</span>
                       </div>
                     </div>
                   </div>
@@ -243,14 +252,21 @@
 
                     <!-- Attachments Preview -->
                     <div v-if="note.attachments && note.attachments.length"
-                      class="mt-3 d-flex align-items-center gap-2 flex-wrap">
-                      <div v-for="(attachment, index) in note.attachments.slice(0, 3)" :key="index">
-                        <img v-if="isImage(attachment.contentType)" :src="getAttachmentUrl(attachment.fileId)"
-                          class="img-thumbnail" style="max-height: 100px; max-width: 100px; object-fit: contain;"
-                          :alt="attachment.originalname" @error="handleImageError" />
-                        <div v-else class="border p-2 rounded text-center" style="width: 100px; height: 100px;">
+                         class="mt-3 d-flex align-items-center gap-2 flex-wrap">
+                      <div v-for="(attachment, index) in note.attachments.slice(0, 3)" :key="index"
+                           class="cursor-pointer"
+                           @click.stop="downloadAttachment(attachment)">
+                        <img v-if="isImage(attachment.contentType)" 
+                             :src="getAttachmentUrl(attachment.fileId)"
+                             class="img-thumbnail" 
+                             style="max-height: 100px; max-width: 100px; object-fit: contain;"
+                             :alt="attachment.originalname" 
+                             @error="handleImageError" />
+                        <div v-else 
+                             class="border p-2 rounded text-center" 
+                             style="width: 100px; height: 100px;">
                           <i class="bi bi-file-earmark" style="font-size: 2rem;"></i>
-                          <div style="font-size: 0.8rem;">{{ attachment.originalname }}</div>
+                          <div style="font-size: 0.8rem;" class="text-truncate">{{ attachment.originalname }}</div>
                         </div>
                       </div>
                     </div>
@@ -308,14 +324,21 @@
 
                     <!-- Attachments Preview -->
                     <div v-if="note.attachments && note.attachments.length"
-                      class="mt-3 d-flex align-items-center gap-2 flex-wrap">
-                      <div v-for="(attachment, index) in note.attachments.slice(0, 3)" :key="index">
-                        <img v-if="isImage(attachment.contentType)" :src="getAttachmentUrl(attachment.fileId)"
-                          class="img-thumbnail" style="max-height: 100px; max-width: 100px; object-fit: contain;"
-                          :alt="attachment.originalname" @error="handleImageError" />
-                        <div v-else class="border p-2 rounded text-center" style="width: 100px; height: 100px;">
+                         class="mt-3 d-flex align-items-center gap-2 flex-wrap">
+                      <div v-for="(attachment, index) in note.attachments.slice(0, 3)" :key="index"
+                           class="cursor-pointer"
+                           @click.stop="downloadAttachment(attachment)">
+                        <img v-if="isImage(attachment.contentType)" 
+                             :src="getAttachmentUrl(attachment.fileId)"
+                             class="img-thumbnail" 
+                             style="max-height: 100px; max-width: 100px; object-fit: contain;"
+                             :alt="attachment.originalname" 
+                             @error="handleImageError" />
+                        <div v-else 
+                             class="border p-2 rounded text-center" 
+                             style="width: 100px; height: 100px;">
                           <i class="bi bi-file-earmark" style="font-size: 2rem;"></i>
-                          <div style="font-size: 0.8rem;">{{ attachment.originalname }}</div>
+                          <div style="font-size: 0.8rem;" class="text-truncate">{{ attachment.originalname }}</div>
                         </div>
                       </div>
                     </div>
@@ -370,6 +393,13 @@
 
 <script>
 import axios from 'axios';
+
+// Replace the existing axios defaults configuration
+const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
+
+axios.defaults.baseURL = baseURL;
+axios.defaults.withCredentials = true;
+
 import NoteForm from './components/NoteForm.vue';
 import LoginForm from './components/LoginForm.vue';
 
@@ -660,7 +690,31 @@ export default {
     },
     handleImageError(event) {
       console.error('Image failed to load:', event.target.src);
-    }
+    },
+    async downloadAttachment(attachment) {
+      try {
+        const response = await axios.get(`/api/files/${attachment.fileId}`, {
+          responseType: 'blob',
+          withCredentials: true,
+          headers: {
+            'Accept': '*/*'
+          }
+        });
+        
+        const blob = new Blob([response.data]);
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', attachment.originalname);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error('Error downloading file:', error);
+        alert('Failed to download file. Please try logging in again if the problem persists.');
+      }
+    },
   }
 };
 </script>
@@ -768,5 +822,9 @@ export default {
 .btn-outline-danger:hover {
   background-color: #dc3545;
   color: #fff;
+}
+
+.cursor-pointer {
+  cursor: pointer;
 }
 </style>
