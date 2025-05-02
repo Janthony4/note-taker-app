@@ -72,12 +72,10 @@
                     <div class="col-md-4 mb-3" v-for="(attachment, index) in currentNote.attachments" :key="index">
                       <!-- For images -->
                       <div v-if="isImage(attachment.contentType)" 
-                           class="cursor-pointer"
-                           style="max-height: 200px; overflow: hidden;"
+                           class="cursor-pointer image-container"
                            @click="downloadAttachment(attachment)">
                         <img :src="getAttachmentUrl(attachment.fileId)"
-                             class="img-fluid rounded w-100" 
-                             style="object-fit: contain;"
+                             class="img-fluid rounded" 
                              :alt="attachment.originalname" 
                              @error="handleImageError" />
                       </div>
@@ -826,5 +824,23 @@ export default {
 
 .cursor-pointer {
   cursor: pointer;
+}
+
+.image-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  padding: 8px;
+  min-height: 200px;
+}
+
+.image-container img {
+  max-width: 100%;
+  max-height: 300px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
 }
 </style>
