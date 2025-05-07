@@ -9,15 +9,14 @@ Bevor Sie beginnen, stellen Sie sicher, dass Folgendes auf Ihrem System installi
 
 ## Erste Schritte
 
-### 1. Repository klonen
 ```bash
 git clone https://github.com/Janthony4/note-taker-app
 cd note-taker-app
 
 docker-compose up -d --build
 
-docker-compose ps
 ```
+Docker sollte automatisch alle Voraussetzungen für die Ausführung der Anwendung installieren. Anschließend kann das Frontend auf [http://localhost:5173](http://localhost:5173/) geöffnet werden.
 
 Öffnen Sie Postman und importieren Sie die folgende Datei: „NoteTakerAPI.postman_collection.json“.
 Jetzt können Sie die API mit die Postman-Sammlung testen. 
