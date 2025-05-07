@@ -57,7 +57,6 @@ noteSchema.pre('remove', async function(next) {
     }
 });
 
-// Update timestamp on save
 noteSchema.pre('save', function(next) {
     this.updatedAt = Date.now();
     next();

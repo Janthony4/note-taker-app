@@ -96,7 +96,7 @@ export default {
           name: file.name,
           type: file.type,
           size: file.size,
-          contentType: file.type // Add this line
+          contentType: file.type
         });
       });
     },
@@ -107,7 +107,7 @@ export default {
     },
 
     resetForm() {
-      // Reset all form fields to their initial state
+      // reset all form fields to their initial state
       this.note = {
         title: '',
         content: '',
@@ -130,20 +130,17 @@ export default {
       try {
         const formData = new FormData();
 
-        // Add basic note data
         formData.append('title', this.note.title);
         formData.append('content', this.note.content);
         formData.append('isPinned', this.note.isPinned);
         formData.append('isFavourite', this.note.isFavourite);
 
-        // Handle labels
         const labels = this.labelsInput
           .split(',')
           .map(label => label.trim())
           .filter(label => label.length > 0);
         formData.append('labels', JSON.stringify(labels));
 
-        // Append each file individually
         this.files.forEach(file => {
           formData.append('attachments', file);
         });

@@ -1,6 +1,5 @@
 <template>
   <div>
-    <!-- Header -->
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
       <div class="container-fluid">
         <span class="navbar-brand mb-0 h1">NoteTaker</span>
@@ -32,7 +31,7 @@
       <template v-else>
 
 
-        <!-- Create Note Modal -->
+        <!-- Note modal -->
         <div v-if="showCreateModal" class="modal" style="display: block; background-color: rgba(0,0,0,0.5)">
           <div class="modal-dialog">
             <div class="modal-content">
@@ -79,7 +78,7 @@
                              :alt="attachment.originalname" 
                              @error="handleImageError" />
                       </div>
-                      <!-- For other files -->
+                      <!--  other files -->
                       <div v-else 
                            class="border p-2 rounded cursor-pointer d-flex align-items-center"
                            @click="downloadAttachment(attachment)"
@@ -117,7 +116,7 @@
                     <textarea class="form-control" v-model="editingNote.content" rows="5" required></textarea>
                   </div>
 
-                  <!-- Labels Section -->
+                  <!-- Labels -->
                   <div class="mb-3">
                     <label class="form-label">Labels</label>
                     <div class="d-flex flex-wrap gap-2 mb-2">
@@ -206,7 +205,7 @@
 
         <!-- Notes List -->
         <div class="container mt-4">
-          <!-- Search and Filter Controls -->
+          <!-- Search and filter -->
           <div class="container mt-4 mb-3">
             <div class="row g-3">
               <div class="col-md-4">
@@ -231,7 +230,7 @@
             </div>
           </div>
 
-          <!-- Pinned Notes Section -->
+          <!-- Pinned Notes -->
           <div v-if="pinnedNotes.length > 0" class="mb-5">
             <h4 class="mb-3 border-bottom pb-2">
               <i class="bi bi-pin-angle-fill me-2"></i> Pinned Notes
@@ -269,14 +268,13 @@
                       </div>
                     </div>
 
-                    <!-- "+N more" counter -->
                     <div v-if="note.attachments.length > 3"
                       class="d-flex justify-content-center align-items-center bg-secondary text-white rounded"
                       style="width: 50px; height: 50px; font-weight: bold;">
                       +{{ note.attachments.length - 3 }}
                     </div>
 
-                    <!-- Action Buttons -->
+                    <!-- Buttons -->
                     <div class="mt-3 d-flex gap-2">
                       <button class="btn btn-primary" @click="editNote(note)">
                         <i class="bi bi-pencil"></i> Edit
@@ -302,10 +300,9 @@
             </div>
           </div>
 
-          <!-- Divider -->
           <div v-if="pinnedNotes.length > 0 && otherNotes.length > 0" class="my-4 border-bottom"></div>
 
-          <!-- Other Notes Section -->
+          <!-- Other Notes -->
           <div v-if="otherNotes.length > 0">
             <h4 class="mb-3">All Notes</h4>
             <div class="row">
@@ -341,14 +338,13 @@
                       </div>
                     </div>
 
-                    <!-- "+N more" counter -->
                     <div v-if="note.attachments.length > 3"
                       class="d-flex justify-content-center align-items-center bg-secondary text-white rounded"
                       style="width: 50px; height: 50px; font-weight: bold;">
                       +{{ note.attachments.length - 3 }}
                     </div>
 
-                    <!-- Action Buttons -->
+                    <!--  Buttons -->
                     <div class="mt-3 d-flex gap-2">
                       <button class="btn btn-primary" @click="editNote(note)">
                         <i class="bi bi-pencil"></i> Edit
@@ -392,7 +388,6 @@
 <script>
 import axios from 'axios';
 
-// Replace the existing axios defaults configuration
 const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 axios.defaults.baseURL = baseURL;
@@ -427,7 +422,7 @@ export default {
       deletedAttachments: [],
       fileSizeError: '',
       newLabel: '',
-      MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB
+      MAX_FILE_SIZE: 5 * 1024 * 1024,
       searchQuery: '',
       selectedLabel: '',
       sortOption: 'pinned',
@@ -508,11 +503,9 @@ export default {
           }
         });
 
-        // Handle both the notes and availableLabels from the response
         this.notes = response.data.notes || [];
         this.availableLabels = response.data.availableLabels || [];
 
-        // Client-side sorting for title if needed
         if (this.sortOption === 'title-asc') {
           this.notes.sort((a, b) => a.title.localeCompare(b.title));
         } else if (this.sortOption === 'title-desc') {
@@ -531,7 +524,6 @@ export default {
         this.editingNote.labels.push(trimmedLabel);
         this.newLabel = '';
 
-        // Update availableLabels if it's a new label
         if (!this.availableLabels.includes(trimmedLabel)) {
           this.availableLabels = [...this.availableLabels, trimmedLabel].sort();
         }
@@ -556,7 +548,6 @@ export default {
       this.fileSizeError = '';
 
       try {
-        // Validate file sizes
         const oversizedFiles = this.newAttachments.filter(file => file.size > this.MAX_FILE_SIZE);
         if (oversizedFiles.length) {
           this.fileSizeError = `Some files exceed the 5MB limit (${oversizedFiles.map(f => f.name).join(', ')})`;
@@ -570,12 +561,11 @@ export default {
         formData.append('attachments', JSON.stringify(this.editingNote.attachments || []));
         formData.append('deletedAttachments', JSON.stringify(this.deletedAttachments || []));
 
-        // Add new files
         this.newAttachments.forEach(file => {
           formData.append('newAttachments', file);
         });
 
-        // Update the note with new data
+        // updates the note with new data
         await axios.put(`/api/notes/${this.editingNote._id}`, formData, {
           headers: {
             'Content-Type': 'multipart/form-data'
@@ -605,7 +595,7 @@ export default {
         'text/markdown'
       ];
 
-      const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+      const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
       const files = Array.from(event.target.files);
       const validFiles = [];
@@ -622,15 +612,13 @@ export default {
       });
 
       this.newAttachments = [...this.newAttachments, ...validFiles];
-      event.target.value = ''; // Reset file input
+      event.target.value = '';
     },
     removeAttachment(index) {
-      // Store the fileId instead of filename
       const attachment = this.editingNote.attachments[index];
       if (attachment.fileId) {
         this.deletedAttachments.push(attachment.fileId);
       }
-      // Remove from display
       this.editingNote.attachments.splice(index, 1);
     },
     removeNewAttachment(index) {

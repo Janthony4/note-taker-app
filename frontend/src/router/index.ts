@@ -15,7 +15,7 @@ const routes: Array<RouteRecordRaw> = [
     path: '/note/:id',
     name: 'NoteDetail',
     component: NoteDetail,
-    props: true  // Pass the 'id' as a prop to the NoteDetail component
+    props: true 
   },
   {
     path: '/create',
@@ -26,7 +26,7 @@ const routes: Array<RouteRecordRaw> = [
     path: '/edit/:id',
     name: 'EditNote',
     component: NoteForm,
-    props: true  // Pass the 'id' as a prop to the NoteForm component
+    props: true
   },
   {
     path: '/login',

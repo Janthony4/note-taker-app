@@ -28,7 +28,6 @@ app.use(cors({
 
 app.use(express.json());
 
-// Add session middleware (at top of file)
 const session = require('express-session');
 app.use(session({
   secret: 'your-secret-key',
@@ -60,7 +59,6 @@ const allowedMimes = [
 	'text/markdown'
 ];
 
-// Remove multer disk storage configuration and use memory storage instead
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: {
@@ -75,7 +73,6 @@ const upload = multer({
     }
 });
 
-// Add this before your routes
 app.use(express.urlencoded({ extended: true }));
 const Note = require('./models/Note');
 
@@ -126,7 +123,6 @@ app.post('/api/notes', requireAuth, upload.array('attachments'), async (req, res
     }
 });
 
-// Add route to serve files
 app.get('/api/files/:fileId', requireAuth, async (req, res) => {
     try {
         const bucket = new GridFSBucket(mongoose.connection.db);
@@ -136,7 +132,6 @@ app.get('/api/files/:fileId', requireAuth, async (req, res) => {
             return res.status(404).json({ error: 'File not found' });
         }
 
-        // Set the correct content type
         res.set('Content-Type', file.contentType);
         
         const downloadStream = bucket.openDownloadStream(new mongoose.Types.ObjectId(req.params.fileId));
@@ -152,7 +147,6 @@ app.get('/api/files/:fileId', requireAuth, async (req, res) => {
     }
 });
 
-// In your backend (index.js or routes file)
 app.get('/api/notes', requireAuth, async (req, res) => {
 	try {
 		const { q, label, sort } = req.query;
@@ -172,8 +166,8 @@ app.get('/api/notes', requireAuth, async (req, res) => {
 		let sortOption = { createdAt: -1 };
 		if (sort === 'pinned') sortOption = { isPinned: -1, createdAt: -1 };
 		else if (sort === 'favourite') sortOption = { isFavourite: -1, createdAt: -1 };
-		else if (sort === 'title-asc') sortOption = { title: 1 }; // Add these
-		else if (sort === 'title-desc') sortOption = { title: -1 }; // Add these
+		else if (sort === 'title-asc') sortOption = { title: 1 };
+		else if (sort === 'title-desc') sortOption = { title: -1 };
 
 		const notes = await Note.find(query).sort(sortOption);
 		const availableLabels = await Note.distinct('labels');
@@ -226,7 +220,6 @@ app.delete('/api/notes/:id', requireAuth, async (req, res) => {
         const note = await Note.findById(req.params.id);
         if (!note) return res.status(404).send();
 
-        // Delete associated files from GridFS
         if (note.attachments && note.attachments.length) {
             const bucket = new GridFSBucket(mongoose.connection.db);
             await Promise.all(note.attachments.map(attachment => 
@@ -248,24 +241,20 @@ app.put('/api/notes/:id', requireAuth, upload.array('newAttachments'), async (re
         const { title, content } = req.body;
         const bucket = new GridFSBucket(mongoose.connection.db);
 
-        // Parse the JSON strings from form data
         const labels = req.body.labels ? JSON.parse(req.body.labels) : [];
         const existingAttachments = req.body.attachments ? JSON.parse(req.body.attachments) : [];
         const deletedAttachments = req.body.deletedAttachments ? JSON.parse(req.body.deletedAttachments) : [];
 
-        // Delete files from GridFS
         if (deletedAttachments.length > 0) {
             await Promise.all(deletedAttachments.map(async (fileId) => {
                 try {
                     await bucket.delete(new mongoose.Types.ObjectId(fileId));
                 } catch (err) {
                     console.error(`Failed to delete file ${fileId}:`, err);
-                    // Continue with other deletions even if one fails
                 }
             }));
         }
 
-        // Process new attachments with GridFS
         const newAttachmentPromises = req.files?.map(async file => {
             const uploadStream = bucket.openUploadStream(file.originalname);
             const readStream = Readable.from(file.buffer);
@@ -287,7 +276,6 @@ app.put('/api/notes/:id', requireAuth, upload.array('newAttachments'), async (re
 
         const newAttachments = await Promise.all(newAttachmentPromises);
 
-        // Combine all data
         const updateData = {
             title,
             content,
@@ -306,7 +294,6 @@ app.put('/api/notes/:id', requireAuth, upload.array('newAttachments'), async (re
     }
 });
 
-// Update delete attachment endpoint
 app.delete('/api/notes/:id/attachments/:fileId', requireAuth, async (req, res) => {
     try {
         const { id, fileId } = req.params;
@@ -329,20 +316,6 @@ app.delete('/api/notes/:id/attachments/:fileId', requireAuth, async (req, res) =
     }
 });
 
-app.get('/api/notes/labels', requireAuth, async (req, res) => {
-	try {
-		// Use distinct to get all unique labels
-		const labels = await Note.distinct('labels');
-		// Filter out empty/null labels and sort alphabetically
-		const filteredLabels = labels
-			.filter(label => label && label.trim())
-			.sort((a, b) => a.localeCompare(b));
-		res.json(filteredLabels);
-	} catch (error) {
-		res.status(500).json({ error: error.message });
-	}
-});
-
 const User = require('./models/User');
 
 // Register
@@ -356,11 +329,9 @@ app.post('/api/register', async (req, res) => {
 		return res.status(400).json({ error: 'Username already exists' });
 	  }
   
-	  // Create new user
 	  const user = new User({ username, password });
 	  await user.save();
   
-	  // Set session
 	  req.session.userId = user._id;
 	  res.json({ userId: user._id });
 	} catch (error) {
@@ -372,13 +343,11 @@ app.post('/api/register', async (req, res) => {
 	try {
 	  const { username, password } = req.body;
 	  
-	  // Find user and check password
 	  const user = await User.findOne({ username });
 	  if (!user || user.password !== password) {
 		return res.status(401).json({ error: 'Invalid username or password' });
 	  }
   
-	  // Set session
 	  req.session.userId = user._id;
 	  res.json({ userId: user._id });
 	} catch (error) {
